@@ -1,0 +1,10 @@
+start 256x8 20:26:02
+STRESS_RESULT burst=256 bursts=8 sent=2048 exact=2048 wrong=0 lost=0 bit_errors=0 bursts_all_ok=8 encoder_done=2048 busy_s=1.46878 ms_per_tb=0.717179 goodput_mbps=15.0032 tx_ifg=8 rx_ifg=128
+start 256x16 20:26:04
+STRESS_RESULT burst=256 bursts=16 sent=4096 exact=4096 wrong=0 lost=0 bit_errors=0 bursts_all_ok=16 encoder_done=4096 busy_s=2.92602 ms_per_tb=0.714361 goodput_mbps=15.0624 tx_ifg=8 rx_ifg=128
+start 256x40 20:26:15
+STRESS_RESULT burst=256 bursts=40 sent=10240 exact=10240 wrong=0 lost=0 bit_errors=0 bursts_all_ok=40 encoder_done=10240 busy_s=7.31673 ms_per_tb=0.714525 goodput_mbps=15.059 tx_ifg=8 rx_ifg=128
+start 512x20 20:26:22
+STRESS_RESULT burst=512 bursts=20 sent=10240 exact=10240 wrong=0 lost=0 bit_errors=0 bursts_all_ok=20 encoder_done=10240 busy_s=7.23274 ms_per_tb=0.706322 goodput_mbps=15.2338 tx_ifg=8 rx_ifg=128
+start 512x120 20:27:21
+STRESS_RESULT burst=512 bursts=120 sent=61440 exact=61440 wrong=0 lost=0 bit_errors=0 bursts_all_ok=120 encoder_done=61440 busy_s=43.5986 ms_per_tb=0.709612 goodput_mbps=15.1632 tx_ifg=8 rx_ifg=128

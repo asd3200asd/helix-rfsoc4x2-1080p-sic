@@ -1,0 +1,10 @@
+{
+ "name": "c4_si_plus_desired",
+ "taps": 4,
+ "delay": 301,
+ "beats": 4000,
+ "latency": 7,
+ "commits": 1,
+ "note": "y = SI + independent remote signal; output must equal the remote signal",
+ "clipped_samples": 0
+}

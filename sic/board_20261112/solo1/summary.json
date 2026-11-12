@@ -1,0 +1,141 @@
+{
+ "cal": {
+  "t_ns": 113436975117655,
+  "lag": 123,
+  "cfg_delay": 121,
+  "coef_q15": [
+   [
+    -95,
+    75
+   ],
+   [
+    750,
+    -547
+   ],
+   [
+    56,
+    -1897
+   ],
+   [
+    -558,
+    366
+   ],
+   [
+    311,
+    -401
+   ],
+   [
+    -280,
+    -13
+   ],
+   [
+    223,
+    -67
+   ],
+   [
+    12,
+    43
+   ]
+  ],
+  "ref_rms": 3799.4642331641617,
+  "si_power": 74785.10788330229,
+  "residual_power": 7531.686218652672,
+  "predicted_dB": 9.969229061334605,
+  "adc_peak": 816
+ },
+ "onchecks": [
+  {
+   "t_s": 8.0,
+   "rx_power_before": 105138.85076396207,
+   "rx_power_after": 36929.894757639624,
+   "cancel_dB": 4.543851555814658
+  },
+  {
+   "t_s": 20.0,
+   "rx_power_before": 72178.7655426765,
+   "rx_power_after": 4569.135273972603,
+   "cancel_dB": 11.985754341622938
+  }
+ ],
+ "packets": 107190,
+ "phases": [
+  {
+   "t0": 0.3,
+   "t1": 7.95,
+   "sic": 0,
+   "pkts_per_s": 4230.3,
+   "local_good_per_s": 4230.3,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 0.0,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 8.3,
+   "t1": 13.95,
+   "sic": 1,
+   "pkts_per_s": 0.0,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 0.0,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 14.3,
+   "t1": 19.95,
+   "sic": 0,
+   "pkts_per_s": 4353.4,
+   "local_good_per_s": 4353.4,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 0.0,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 20.3,
+   "t1": 25.95,
+   "sic": 1,
+   "pkts_per_s": 0.2,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 0.2,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 26.3,
+   "t1": 29.95,
+   "sic": 0,
+   "pkts_per_s": 4785.2,
+   "local_good_per_s": 4785.2,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 0.0,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 30.3,
+   "t1": 35.04,
+   "sic": 0,
+   "pkts_per_s": 5005.0,
+   "local_good_per_s": 5005.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 0.0,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  }
+ ]
+}

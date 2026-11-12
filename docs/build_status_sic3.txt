@@ -1,0 +1,15 @@
+18:08:04 SSB cell VLNV before: xilinx.com:user:SSB_TOP_v3:1.1
+18:08:48 SSB cell VLNV after: xilinx.com:user:SSB_TOP_v3:1.2
+18:08:48 dac tdata net pins: /tx_blocks/dac_tdata_tap /sic_0/dac_tdata /usp_rf_data_converter_0/s00_axis_tdata
+18:08:48 sic aclk busif: s_axi:s_axis_i:s_axis_q:m_axis_i:m_axis_q
+18:08:48 locked IPs: 0; generate_target
+18:09:27 generate_target done
+18:09:27 generated packet_sync copies: N:/p/HELIX_RFSoC4x2_QSFP100G_V46_PSDMA.gen/sources_1/bd/design_1/ipshared/dccc/src/packet_sync.vhd ; hold-off present: 1
+18:09:30   resynth synth_1
+18:09:30   resynth design_1_axi_smc_0_synth_1
+18:09:31   resynth design_1_nl_eth_smc_0_synth_1
+18:09:31 launch synth (3 OOC/top runs reset)
+18:18:32 synth_1: synth_design Complete!
+18:18:32 launch impl
+19:02:39 impl_1: write_bitstream Complete! WNS=0.064527 TNS=0.000000 WHS=0.009895 THS=0.000000
+19:02:39 BUILD_DONE bit=N:/out/helix_nlsg_sic3.bit

@@ -1,0 +1,6 @@
+F=1740 VOP=40500 DSA=0 :: sent=32 exact=31 wrong=1 lost=0 bit_errors=103
+F=1740 VOP=40500 DSA=0 :: sent=32 exact=30 wrong=2 lost=0 bit_errors=69
+F=1740 VOP=40500 DSA=0 :: sent=32 exact=30 wrong=2 lost=0 bit_errors=173
+F=1840 VOP=40500 DSA=0 :: sent=32 exact=0 wrong=27 lost=5 bit_errors=137880
+F=1840 VOP=40500 DSA=0 :: 
+F=1840 VOP=40500 DSA=0 :: 

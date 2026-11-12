@@ -1,0 +1,176 @@
+{
+ "cal": {
+  "t_ns": 134583037635664,
+  "lag": 122,
+  "cfg_delay": 120,
+  "coef_q15": [
+   [
+    149,
+    102
+   ],
+   [
+    -666,
+    -346
+   ],
+   [
+    1350,
+    1318
+   ],
+   [
+    -976,
+    1082
+   ],
+   [
+    666,
+    -1931
+   ],
+   [
+    -355,
+    1292
+   ],
+   [
+    -12,
+    -919
+   ],
+   [
+    197,
+    256
+   ]
+  ],
+  "ref_rms": 3782.762499530603,
+  "si_power": 64150.88542701092,
+  "residual_power": 30337.447448415307,
+  "predicted_dB": 3.2522361795579897,
+  "adc_peak": 903
+ },
+ "onchecks": [],
+ "packets": 719872,
+ "phases": [
+  {
+   "t0": 0.3,
+   "t1": 33.95,
+   "sic": 0,
+   "agc": "k",
+   "pkts_per_s": 3447.7,
+   "local_good_per_s": 726.3,
+   "remote_good_per_s": 2452.7,
+   "other_good": 0,
+   "bad_per_s": 268.6,
+   "remote_unique": 8932,
+   "remote_seq_span": 8988,
+   "remote_unique_recovered_pct": 99.38
+  },
+  {
+   "t0": 34.3,
+   "t1": 49.95,
+   "sic": 1,
+   "agc": "800",
+   "pkts_per_s": 3885.7,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 3804.2,
+   "other_good": 0,
+   "bad_per_s": 81.5,
+   "remote_unique": 5082,
+   "remote_seq_span": 5082,
+   "remote_unique_recovered_pct": 100.0
+  },
+  {
+   "t0": 50.3,
+   "t1": 64.95,
+   "sic": 0,
+   "agc": "800",
+   "pkts_per_s": 4859.9,
+   "local_good_per_s": 2457.9,
+   "remote_good_per_s": 1713.9,
+   "other_good": 0,
+   "bad_per_s": 688.1,
+   "remote_unique": 4709,
+   "remote_seq_span": 4746,
+   "remote_unique_recovered_pct": 99.22
+  },
+  {
+   "t0": 65.3,
+   "t1": 79.95,
+   "sic": 1,
+   "agc": "800",
+   "pkts_per_s": 3878.4,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 3805.8,
+   "other_good": 0,
+   "bad_per_s": 72.6,
+   "remote_unique": 4746,
+   "remote_seq_span": 4746,
+   "remote_unique_recovered_pct": 100.0
+  },
+  {
+   "t0": 80.3,
+   "t1": 94.95,
+   "sic": 0,
+   "agc": "800",
+   "pkts_per_s": 4836.3,
+   "local_good_per_s": 2506.0,
+   "remote_good_per_s": 1688.3,
+   "other_good": 0,
+   "bad_per_s": 642.0,
+   "remote_unique": 4732,
+   "remote_seq_span": 4746,
+   "remote_unique_recovered_pct": 99.71
+  },
+  {
+   "t0": 95.3,
+   "t1": 109.95,
+   "sic": 1,
+   "agc": "800",
+   "pkts_per_s": 3887.7,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 3796.6,
+   "other_good": 0,
+   "bad_per_s": 91.1,
+   "remote_unique": 4746,
+   "remote_seq_span": 4746,
+   "remote_unique_recovered_pct": 100.0
+  },
+  {
+   "t0": 110.3,
+   "t1": 124.95,
+   "sic": 0,
+   "agc": "800",
+   "pkts_per_s": 4779.5,
+   "local_good_per_s": 2844.4,
+   "remote_good_per_s": 1235.8,
+   "other_good": 0,
+   "bad_per_s": 699.4,
+   "remote_unique": 4646,
+   "remote_seq_span": 4764,
+   "remote_unique_recovered_pct": 97.52
+  },
+  {
+   "t0": 125.3,
+   "t1": 139.95,
+   "sic": 1,
+   "agc": "800",
+   "pkts_per_s": 4078.0,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 3992.4,
+   "other_good": 0,
+   "bad_per_s": 85.6,
+   "remote_unique": 4998,
+   "remote_seq_span": 4998,
+   "remote_unique_recovered_pct": 100.0
+  },
+  {
+   "t0": 140.3,
+   "t1": 170.94,
+   "sic": 0,
+   "agc": "k",
+   "pkts_per_s": 4733.4,
+   "local_good_per_s": 3506.0,
+   "remote_good_per_s": 766.6,
+   "other_good": 0,
+   "bad_per_s": 460.9,
+   "remote_unique": 6212,
+   "remote_seq_span": 6341,
+   "remote_unique_recovered_pct": 97.97
+  }
+ ]
+}

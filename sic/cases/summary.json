@@ -1,0 +1,326 @@
+{
+ "cases": [
+  {
+   "name": "c1_bypass",
+   "taps": 4,
+   "delay": 37,
+   "beats": 4000,
+   "latency": 7,
+   "commits": 1,
+   "note": "enable=0 with non-zero coefficients; output must equal input",
+   "clipped_samples": 0
+  },
+  {
+   "name": "c2_zero_coef",
+   "taps": 4,
+   "delay": 37,
+   "beats": 4000,
+   "latency": 7,
+   "commits": 1,
+   "note": "enable=1, h=0; output must equal input",
+   "clipped_samples": 0
+  },
+  {
+   "name": "c3_si_only",
+   "taps": 4,
+   "delay": 301,
+   "beats": 4000,
+   "latency": 7,
+   "commits": 1,
+   "note": "y = quantized SI only (odd delay); residual must be exactly 0 after commit",
+   "clipped_samples": 0
+  },
+  {
+   "name": "c4_si_plus_desired",
+   "taps": 4,
+   "delay": 301,
+   "beats": 4000,
+   "latency": 7,
+   "commits": 1,
+   "note": "y = SI + independent remote signal; output must equal the remote signal",
+   "clipped_samples": 0
+  },
+  {
+   "name": "c5_random_t4",
+   "taps": 4,
+   "delay": 255,
+   "beats": 4000,
+   "latency": 7,
+   "commits": 1,
+   "note": "random full-scale samples and extreme coefficients (saturation paths)",
+   "clipped_samples": 7617
+  },
+  {
+   "name": "c6_random_t8",
+   "taps": 8,
+   "delay": 1024,
+   "beats": 4000,
+   "latency": 8,
+   "commits": 1,
+   "note": "random full-scale samples and extreme coefficients (saturation paths)",
+   "clipped_samples": 6871
+  },
+  {
+   "name": "c7_random_t1",
+   "taps": 1,
+   "delay": 0,
+   "beats": 4000,
+   "latency": 5,
+   "commits": 1,
+   "note": "random full-scale samples and extreme coefficients (saturation paths)",
+   "clipped_samples": 7843
+  },
+  {
+   "name": "c8_random_t16",
+   "taps": 16,
+   "delay": 4093,
+   "beats": 4000,
+   "latency": 9,
+   "commits": 1,
+   "note": "random full-scale samples and extreme coefficients (saturation paths)",
+   "clipped_samples": 3855
+  },
+  {
+   "name": "c9_switch",
+   "taps": 4,
+   "delay": 64,
+   "beats": 4000,
+   "latency": 7,
+   "commits": 5,
+   "note": "5 atomic coefficient commits and 4 enable changes while samples flow",
+   "clipped_samples": 2474
+  },
+  {
+   "name": "c10_fit_t4",
+   "taps": 4,
+   "delay": 134,
+   "beats": 16000,
+   "latency": 7,
+   "commits": 1,
+   "note": "float 2-path channel with fractional delays; LS fit on TX-only half, held-out half carries a remote signal 30 dB below the SI",
+   "clipped_samples": 0,
+   "cfg_delay": 134,
+   "heldout_si_cancel_dB": 32.38,
+   "remote_error_dB": 2.03,
+   "coef_q15": [
+    [
+     -261,
+     1301
+    ],
+    [
+     7794,
+     2121
+    ],
+    [
+     7401,
+     12734
+    ],
+    [
+     -3575,
+     -8881
+    ]
+   ]
+  },
+  {
+   "name": "c10_fit_t8",
+   "taps": 8,
+   "delay": 134,
+   "beats": 16000,
+   "latency": 8,
+   "commits": 1,
+   "note": "float 2-path channel with fractional delays; LS fit on TX-only half, held-out half carries a remote signal 30 dB below the SI",
+   "clipped_samples": 0,
+   "cfg_delay": 134,
+   "heldout_si_cancel_dB": 60.33,
+   "remote_error_dB": 29.98,
+   "coef_q15": [
+    [
+     -421,
+     -341
+    ],
+    [
+     8036,
+     6692
+    ],
+    [
+     7549,
+     6600
+    ],
+    [
+     -4444,
+     -4432
+    ],
+    [
+     1213,
+     -1297
+    ],
+    [
+     -907,
+     -552
+    ],
+    [
+     270,
+     190
+    ],
+    [
+     -38,
+     -29
+    ]
+   ]
+  }
+ ],
+ "fit_sweep": {
+  "2": {
+   "taps": 2,
+   "cfg_delay": 134,
+   "heldout_si_cancel_dB": 14.42,
+   "remote_error_dB": -15.93,
+   "coef_q15": [
+    [
+     -3583,
+     -2593
+    ],
+    [
+     15029,
+     12711
+    ]
+   ]
+  },
+  "4": {
+   "taps": 4,
+   "cfg_delay": 134,
+   "heldout_si_cancel_dB": 32.38,
+   "remote_error_dB": 2.03,
+   "coef_q15": [
+    [
+     -261,
+     1301
+    ],
+    [
+     7794,
+     2121
+    ],
+    [
+     7401,
+     12734
+    ],
+    [
+     -3575,
+     -8881
+    ]
+   ]
+  },
+  "8": {
+   "taps": 8,
+   "cfg_delay": 134,
+   "heldout_si_cancel_dB": 60.33,
+   "remote_error_dB": 29.98,
+   "coef_q15": [
+    [
+     -421,
+     -341
+    ],
+    [
+     8036,
+     6692
+    ],
+    [
+     7549,
+     6600
+    ],
+    [
+     -4444,
+     -4432
+    ],
+    [
+     1213,
+     -1297
+    ],
+    [
+     -907,
+     -552
+    ],
+    [
+     270,
+     190
+    ],
+    [
+     -38,
+     -29
+    ]
+   ]
+  },
+  "16": {
+   "taps": 16,
+   "cfg_delay": 134,
+   "heldout_si_cancel_dB": 60.39,
+   "remote_error_dB": 30.04,
+   "coef_q15": [
+    [
+     -460,
+     -370
+    ],
+    [
+     8341,
+     6905
+    ],
+    [
+     6517,
+     5916
+    ],
+    [
+     -2382,
+     -3129
+    ],
+    [
+     -1417,
+     -2860
+    ],
+    [
+     1115,
+     512
+    ],
+    [
+     -278,
+     86
+    ],
+    [
+     -619,
+     -533
+    ],
+    [
+     565,
+     335
+    ],
+    [
+     128,
+     189
+    ],
+    [
+     -500,
+     -390
+    ],
+    [
+     234,
+     138
+    ],
+    [
+     186,
+     174
+    ],
+    [
+     -305,
+     -241
+    ],
+    [
+     172,
+     129
+    ],
+    [
+     -41,
+     -29
+    ]
+   ]
+  }
+ }
+}

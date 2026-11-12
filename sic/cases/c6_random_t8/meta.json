@@ -1,0 +1,10 @@
+{
+ "name": "c6_random_t8",
+ "taps": 8,
+ "delay": 1024,
+ "beats": 4000,
+ "latency": 8,
+ "commits": 1,
+ "note": "random full-scale samples and extreme coefficients (saturation paths)",
+ "clipped_samples": 6871
+}

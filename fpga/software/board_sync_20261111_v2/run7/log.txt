@@ -1,0 +1,4 @@
+STRESS_RESULT burst=4096 bursts=24 sent=98304 exact=98304 wrong=0 lost=0 bit_errors=0 bursts_all_ok=24 encoder_done=98304 busy_s=19.8772 ms_per_tb=0.202202 goodput_mbps=53.2142 tx_ifg=200000 rx_ifg=128 window=32
+STRESS_RESULT burst=4096 bursts=24 sent=98304 exact=98304 wrong=0 lost=0 bit_errors=0 bursts_all_ok=24 encoder_done=98304 busy_s=17.8777 ms_per_tb=0.181862 goodput_mbps=59.1658 tx_ifg=180000 rx_ifg=128 window=32
+STRESS_RESULT burst=4096 bursts=24 sent=98304 exact=98304 wrong=0 lost=0 bit_errors=0 bursts_all_ok=24 encoder_done=98304 busy_s=16.9359 ms_per_tb=0.172281 goodput_mbps=62.456 tx_ifg=170000 rx_ifg=128 window=32
+DONE

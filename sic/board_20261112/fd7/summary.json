@@ -1,0 +1,141 @@
+{
+ "cal": {
+  "t_ns": 115951102113169,
+  "lag": 123,
+  "cfg_delay": 121,
+  "coef_q15": [
+   [
+    -5,
+    -64
+   ],
+   [
+    284,
+    232
+   ],
+   [
+    -1049,
+    -376
+   ],
+   [
+    1572,
+    385
+   ],
+   [
+    -1528,
+    -108
+   ],
+   [
+    927,
+    -129
+   ],
+   [
+    -306,
+    219
+   ],
+   [
+    30,
+    -117
+   ]
+  ],
+  "ref_rms": 3786.3968595357146,
+  "si_power": 37827.2017380509,
+  "residual_power": 37652.54126107813,
+  "predicted_dB": 0.020099224966105434,
+  "adc_peak": 532
+ },
+ "onchecks": [],
+ "packets": 407420,
+ "phases": [
+  {
+   "t0": 0.3,
+   "t1": 33.95,
+   "sic": 0,
+   "pkts_per_s": 2713.5,
+   "local_good_per_s": 0.3,
+   "remote_good_per_s": 1307.0,
+   "other_good": 0,
+   "bad_per_s": 1406.2,
+   "remote_unique": 5664,
+   "remote_seq_span": 5664,
+   "remote_unique_recovered_pct": 100.0
+  },
+  {
+   "t0": 34.3,
+   "t1": 41.95,
+   "sic": 1,
+   "pkts_per_s": 4250.3,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 4250.3,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 42.3,
+   "t1": 47.95,
+   "sic": 0,
+   "pkts_per_s": 4499.8,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 4499.8,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 48.3,
+   "t1": 55.95,
+   "sic": 1,
+   "pkts_per_s": 4242.5,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 4242.5,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 56.3,
+   "t1": 61.95,
+   "sic": 0,
+   "pkts_per_s": 4242.3,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 4242.3,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 62.3,
+   "t1": 69.95,
+   "sic": 1,
+   "pkts_per_s": 4246.1,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 4246.1,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  },
+  {
+   "t0": 70.3,
+   "t1": 105.85,
+   "sic": 0,
+   "pkts_per_s": 4496.4,
+   "local_good_per_s": 0.0,
+   "remote_good_per_s": 0.0,
+   "other_good": 0,
+   "bad_per_s": 4496.4,
+   "remote_unique": 0,
+   "remote_seq_span": 0,
+   "remote_unique_recovered_pct": null
+  }
+ ]
+}

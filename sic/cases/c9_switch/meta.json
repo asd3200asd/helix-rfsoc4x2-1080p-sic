@@ -1,0 +1,10 @@
+{
+ "name": "c9_switch",
+ "taps": 4,
+ "delay": 64,
+ "beats": 4000,
+ "latency": 7,
+ "commits": 5,
+ "note": "5 atomic coefficient commits and 4 enable changes while samples flow",
+ "clipped_samples": 2474
+}

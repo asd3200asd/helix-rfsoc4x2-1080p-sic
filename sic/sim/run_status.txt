@@ -1,0 +1,17 @@
+xvlog rc=0
+xelab_t1 rc=0
+xelab_t4 rc=0
+xelab_t8 rc=0
+xelab_t16 rc=0
+c10_fit_t4 rc=0
+c10_fit_t8 rc=0
+c1_bypass rc=0
+c2_zero_coef rc=0
+c3_si_only rc=0
+c4_si_plus_desired rc=0
+c5_random_t4 rc=0
+c6_random_t8 rc=0
+c7_random_t1 rc=0
+c8_random_t16 rc=0
+c9_switch rc=0
+DONE

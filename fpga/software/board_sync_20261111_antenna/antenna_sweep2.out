@@ -1,0 +1,12 @@
+F=1740 VOP=40500 DSA=6 :: sent=32 exact=32 wrong=0 lost=0 bit_errors=0
+F=1740 VOP=40500 DSA=6 :: sent=32 exact=25 wrong=7 lost=0 bit_errors=674
+F=1740 VOP=40500 DSA=6 :: sent=32 exact=32 wrong=0 lost=0 bit_errors=0
+F=1740 VOP=20000 DSA=0 :: sent=32 exact=9 wrong=23 lost=0 bit_errors=7042
+F=1740 VOP=20000 DSA=0 :: sent=32 exact=11 wrong=21 lost=0 bit_errors=5144
+F=1740 VOP=20000 DSA=0 :: sent=32 exact=7 wrong=25 lost=0 bit_errors=12064
+F=1760 VOP=40500 DSA=0 :: sent=32 exact=25 wrong=7 lost=0 bit_errors=1267
+F=1760 VOP=40500 DSA=0 :: sent=32 exact=22 wrong=10 lost=0 bit_errors=1684
+F=1760 VOP=40500 DSA=0 :: sent=32 exact=26 wrong=6 lost=0 bit_errors=1233
+F=1720 VOP=40500 DSA=0 :: sent=32 exact=31 wrong=1 lost=0 bit_errors=1
+F=1720 VOP=40500 DSA=0 :: sent=32 exact=32 wrong=0 lost=0 bit_errors=0
+F=1720 VOP=40500 DSA=0 :: sent=32 exact=32 wrong=0 lost=0 bit_errors=0

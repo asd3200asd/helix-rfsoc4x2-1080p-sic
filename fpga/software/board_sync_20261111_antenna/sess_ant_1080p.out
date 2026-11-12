@@ -1,0 +1,7 @@
+RELAY_EXIT=0
+STREAM_RESULT seconds=599.449 tbs=189523 bytes=242688552 avg_mbps=3.23882 bursts=15344 bad=279 missing=0 retx=279 recov=0 trig_to=1 sent=189802 undelivered_tbs=0 out_drops=0 rc=0
+242688552 /home/xilinx/claude_nlsg_20261110/live4k/sess_ant_1080p/received.h264
+242688552 /home/xilinx/claude_nlsg_20261110/live4k/sess_ant_1080p/source.h264
+SOURCE_RECEIVED_EXACT_PASS
+    nan M-V:    nan fd=2379 aq=    0KB vq=    0KB sq=    0B f=0/0   
+
