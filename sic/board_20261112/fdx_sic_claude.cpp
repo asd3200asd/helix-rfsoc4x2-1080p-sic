@@ -65,9 +65,10 @@ int main(int argc, char** argv){
         radio.control->configure_radio(SPLIT_6, SPLIT_6, BW_MODE_HIGH, 73, MOD_QPSK, 490.0/1024, 0);
         auto rp = radio.control->get_radio_config();
         // 2026-11-12: the original HELIX two-node examples (throughput_experiment_tx/rx) load the SSB on the transmitter only.
-        if (do_tx || !getenv("ONEWAY_NO_SSB")) radio.control->load_SSB(load_waveform_from_file("matlab/TX_data/QPSK/N_RE_73_RATE_490/slotFR2_CH1_SSB_TX1.txt"));
+        if (do_tx || !getenv("ONEWAY_NO_SSB")) radio.control->load_SSB(load_waveform_from_file(getenv("HELIX_SSB_FILE") ? getenv("HELIX_SSB_FILE") : "matlab/TX_data/QPSK/N_RE_73_RATE_490/slotFR2_CH1_SSB_TX1.txt"));   /* HELIX_SSB_FILE: e.g. an SSB without PSS so this board's receiver does not synchronise to its own transmitter */
         { const float fmhz = getenv("HELIX_FREQ_MHZ") ? atof(getenv("HELIX_FREQ_MHZ")) : 400;   // centre frequency (antenna: 1740/1840)
-          radio.control->set_freq_band({{fmhz,RFDC_DAC_TYPE,0,0,true},{-fmhz,RFDC_ADC_TYPE,2,0,true}}); }
+          const float ftx = getenv("HELIX_TX_FREQ_MHZ") ? atof(getenv("HELIX_TX_FREQ_MHZ")) : fmhz;   /* diagnostic: move the local TX out of band */
+          radio.control->set_freq_band({{ftx,RFDC_DAC_TYPE,0,0,true},{-fmhz,RFDC_ADC_TYPE,2,0,true}}); }
         if (!split6::enable(radio, rp->tbs, rp->num_sch * MOD_QPSK, MOD_QPSK)) return false;
         usleep(10000); memset(pkt.data(), 0, TXB);
         if (do_tx) { if (!trig(radio, "triggerTX ", {std::to_string(TXB)})) return false;

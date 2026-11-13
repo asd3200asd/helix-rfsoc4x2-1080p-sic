@@ -13,10 +13,11 @@ namespace helix {
             explicit helix(const char* _ip);
             streamer* stream;
             radio_control* control;
+            cmd_manager* cmd;   // Claude 2026-11-11: made public (was private) so examples can use writeReg/readReg
+
+            udp_transport* udp;  // Claude 2026-11-11: made public for the timing/stress programs
 
         private:
-            udp_transport* udp;
-            cmd_manager* cmd;
             const char* ip;
     };
 

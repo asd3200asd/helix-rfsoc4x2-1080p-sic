@@ -2,6 +2,10 @@
 
 雙 RFSoC4x2 的 HELIX 專案，包含 Vivado Block Design、RTL、XDC、LDPC TX HLS、SIC 模型與測試、PYNQ 板端服務、C++ 串流程式及相機串流腳本。原始 HELIX 專案資訊見 [上游 README](docs/HELIX-upstream.md)。
 
+## 復現雙板 SIC 全雙工視訊
+
+照 [docs/reproduce_fdv.md](docs/reproduce_fdv.md) 做：PC 端板子載入 sic3、同頻全功率發射並開 SIC，Mac 端板子載入 **s6v2** 只發射攝影機視訊。2026-11-13 照這份文件重跑，PC 端收到 Mac 視訊位元組的 99.81%（另一次 98.07%），SIC 開啟期間本機封包 0、沒有混入本機資料。文件裡有每個檔案要放到板端哪裡，以及與實驗當時板上版本逐檔核對的結果。
+
 ## 下載與建置
 
 從 [sic3 Release](../../releases/tag/sic3) 下載 FPGA 映像、對應的 PYNQ 硬體描述、建置 IP 封裝及 SHA-256 清單。
@@ -32,7 +36,8 @@
     g++ -O3 -std=c++17 src/examples/fdx_sic_claude.cpp src/examples/helpers.cpp build/libHELIX.a -pthread -o build/fdx_sic_claude
 
 - 所有發送端用 IFG=200000。SIC 須在每次 RFDC 設定完成後、同一次執行內校準。go.sh 預設載入 sic2，指定 SICBIT=sic3 可載入 sic3。
-- 實驗腳本使用原測試板上的路徑與 sudo 設定。run_fdx4.sh 讀取板上的 sic/fdx/local_20000tb.bin 作為本機發射資料。原始測試 payload 與相機錄影未在這次上傳的本機來源中找到。
+- 實驗腳本使用原測試板上的路徑與 sudo 設定。run_fdx4.sh 讀取板上的 sic/fdx/local_20000tb.bin 作為本機發射資料；內容是亂數，用 `sic/board_20261112/make_local_payload.sh` 產生一次即可。
+- 板端服務（`run_stack.sh`、`helix_ctrl_service.py`、`nl_tap_bridge.py`）要用 `sic/board_20261112/` 裡的版本，`fpga/software` 下其他日期的副本與實驗時不同。
 
 ## 原始驗證紀錄
 
