@@ -1,6 +1,7 @@
 // Claude 2026-11-13 fdx_bidi: fdx_sic_claude for TWO full-duplex boards (both transmit and receive on the same frequency).
 // HELIX_NODE=0|1 (required): every transmitted TB carries the node id in bit 15 of its length field; the receiver drops TBs
 // carrying its own id (rx_self) so its own transmission can never be mistaken for the remote stream (both start at seq 0).
+// Copies per TB adapt to the input rate (ONEWAY_REPEAT is the maximum, minimum 2).
 // The receiver re-arms a partly received batch after ONEWAY_REARM_S (0.5 s) without packets (lost datagrams would otherwise stall it).
 // Everything else (pacing, triggers, reorder) is unchanged from fdx_sic_claude.
 // Claude 2026-11-12 fdx_sic: oneway2 with (1) ONEWAY_PKTLOG records also carrying the TB CRC (16 bytes: u64 t_ns, u8 good, u8 0, u16 seq, u32 crc)
@@ -106,7 +107,7 @@ int main(int argc, char** argv){
     const bool raw = getenv("ONEWAY_RAW") != nullptr; const double idle_s = getenv("ONEWAY_RX_IDLE_S") ? atof(getenv("ONEWAY_RX_IDLE_S")) : 0;
     const uint64_t period = (uint64_t)ifg + 3000;                 // ns per TB on air (measured: tx_ifg + ~2 us)
     auto ctrig = [&](const char* n, std::vector<std::string> a) { std::lock_guard<std::mutex> l(cmd_m); return trig(radio, n, a); };
-    std::atomic<uint64_t> tx_trig_to{0}, tx_dropped_bursts{0}, tx_unique{0}, tx_sent{0}, tx_bursts{0}, rx_pk{0}, rx_good{0}, rx_bad{0}, rx_dup{0}, rx_holes{0}, rx_bytes{0}, rx_self{0}, rx_rearm{0}; std::atomic<bool> tx_done{!do_tx};
+    std::atomic<uint64_t> tx_trig_to{0}, tx_dropped_bursts{0}, tx_unique{0}, tx_sent{0}, tx_bursts{0}, rx_pk{0}, rx_good{0}, rx_bad{0}, rx_dup{0}, rx_holes{0}, rx_bytes{0}, rx_self{0}, rx_rearm{0}, tx_fill{0}; std::atomic<uint64_t> r_sum{0}, r_n{0}; std::atomic<bool> tx_done{!do_tx};
     std::vector<uint8_t> dummy(TXB, 0); dummy[0] = 0xFF; dummy[1] = 0xFF;
     auto paced = [&](size_t B, const std::function<const uint8_t*(size_t)>& get) {     // one TX burst, clock-paced
         static const int test_n = getenv("ONEWAY_TEST_TRIGFAIL") ? atoi(getenv("ONEWAY_TEST_TRIGFAIL")) : 0; static int tcount = 0;   // test hook: pretend every Nth trigger timed out
@@ -116,8 +117,12 @@ int main(int argc, char** argv){
             // dead until the bit is reloaded.  Tx-only mode: reset the TX path (full re-init) and trigger again; if that also
             // fails, drop this burst.
             tx_trig_to++; std::cerr << "ONEWAY_WARN TX trigger timeout (" << tx_trig_to.load() << ")" << (do_rx ? "" : ": waiting for a late ACK / retrying") << std::endl;
-            { /* fdx: always wait for or retry the trigger, never send untriggered data */ std::lock_guard<std::mutex> l(cmd_m); bool ok = false;
+            { /* fdx: always wait for or retry the trigger, never send untriggered data */ bool ok = false;
+                // 2026-11-13 bidi: the control lock is taken per attempt (not for all retries, up to ~5 s), so the receiver can
+                // still re-trigger its next batch in between; otherwise a TX trigger time-out also stalls reception.
                 for (int attempt = 0; attempt < 4 && !ok; attempt++) {
+                    if (attempt) usleep(20000);
+                    std::lock_guard<std::mutex> l(cmd_m);
                     uint32_t late = 0; bool got = false;                                   // a late ACK means the trigger WAS executed
                     for (int i = 0; i < 3 && !got; i++) got = radio.udp->control_socket.recv(&late, sizeof late) > 0;   // 3 x 200 ms
                     if (got && late == UDP_CMD_ACK && !(test_n && attempt == 0)) { ok = true; break; }
@@ -132,14 +137,26 @@ int main(int argc, char** argv){
     // TBs of k, k-1, ..., k-R+1) instead of repeating them inside one burst, so one burst lost while both boards transmit does not
     // lose those TBs.  When the input pauses, the remaining copies are flushed with bursts that carry no new TBs.
     const bool spread = !getenv("ONEWAY_SPREAD") || atoi(getenv("ONEWAY_SPREAD")) != 0;
+    // ONEWAY_PREFILL=1: until the first input byte arrives, transmit bursts of 32 filler TBs (invalid length, every receiver counts
+    // them as bad and drops them) so the SIC can be calibrated on this board's own signal before any real data is sent.
+    const bool prefill = getenv("ONEWAY_PREFILL") && atoi(getenv("ONEWAY_PREFILL")) != 0;
     std::thread txt([&] { if (!do_tx) return; uint16_t seq = 0; std::vector<uint8_t> txs; const size_t NU = std::max<size_t>(1, MAXB / R);
-        std::deque<std::vector<uint8_t>> hist; std::vector<uint8_t> burst; uint64_t t_burst = now();
+        std::deque<std::vector<uint8_t>> hist; std::vector<uint8_t> burst; uint64_t t_burst = now(); bool got_data = false; size_t r_eff = R; uint64_t t_radj = 0;
         auto send_hist = [&](std::vector<uint8_t>&& fresh) {      // fresh = new TBs (possibly none); send them with the older copies
-            hist.push_front(std::move(fresh)); while (hist.size() > R) hist.pop_back();
+            // 2026-11-13 bidi: adaptive repetition.  The camera's own H.264 rate varies 2..6 Mbit/s with the scene; 6 copies of 6 Mbit/s
+            // would need ~85 % of the air time and the transmitter falls behind (trigger time-outs, dropped bursts).  When input
+            // piles up the number of copies goes down (not below 2) and slowly back up when the backlog is gone.
+            { size_t backlog; { std::lock_guard<std::mutex> l(in_m); backlog = in_buf.size(); }
+              if (backlog > 96 * PAY && r_eff > 2 && now() - t_radj > 200000000ull) { r_eff--; t_radj = now(); }
+              else if (backlog < 16 * PAY && r_eff < R && now() - t_radj > 2000000000ull) { r_eff++; t_radj = now(); }
+              r_sum += r_eff; r_n++; }
+            hist.push_front(std::move(fresh)); while (hist.size() > r_eff) hist.pop_back();
             burst.clear(); for (auto& h : hist) burst.insert(burst.end(), h.begin(), h.end());
             const size_t B = burst.size() / TBB; if (B) { paced(B, [&](size_t k) { return burst.data() + k * TBB; }); tx_sent += B; tx_bursts++; }
             bool any = false; for (auto& h : hist) any |= !h.empty(); if (!any) hist.clear(); t_burst = now(); };
         for (;;) { size_t avail; { std::lock_guard<std::mutex> l(in_m); avail = in_buf.size(); }
+            if (avail) got_data = true;
+            if (!avail && prefill && !got_data && !g_stop) { paced(32, [&](size_t) { return dummy.data(); }); tx_fill++; usleep(20000); continue; }
             if (!avail) { if (spread && !hist.empty() && now() - t_burst > 20000000ull) { send_hist({}); continue; }
                 if (in_eof || g_stop) break; usleep(500); continue; }
             if (avail < 32 * PAY && !in_eof) usleep(3000);
@@ -208,7 +225,7 @@ int main(int argc, char** argv){
     { std::lock_guard<std::mutex> l(out_m); out_done = true; } out_cv.notify_one();
     if (rec) fclose(rec);
     std::cerr << "ONEWAY_RESULT mode=" << mode << " seconds=" << (now() - T0) / 1e9 << " repeat=" << R << " tx_unique=" << tx_unique << " tx_sent=" << tx_sent << " tx_bursts=" << tx_bursts
-              << " rx_packets=" << rx_pk << " rx_good=" << rx_good << " rx_bad=" << rx_bad << " rx_dup=" << rx_dup << " rx_self=" << rx_self << " rx_rearm=" << rx_rearm << " rx_holes=" << rx_holes << " rx_bytes=" << rx_bytes << " out_drops=" << out_drops.load() << " tx_trig_to=" << tx_trig_to.load() << " tx_dropped_bursts=" << tx_dropped_bursts.load() << std::endl;
+              << " rx_packets=" << rx_pk << " rx_good=" << rx_good << " rx_bad=" << rx_bad << " rx_dup=" << rx_dup << " rx_self=" << rx_self << " rx_rearm=" << rx_rearm << " rx_holes=" << rx_holes << " rx_bytes=" << rx_bytes << " out_drops=" << out_drops.load() << " tx_trig_to=" << tx_trig_to.load() << " tx_dropped_bursts=" << tx_dropped_bursts.load() << " tx_fill_bursts=" << tx_fill.load() << " mean_copies=" << (r_n ? (double)r_sum / r_n : 0.0) << std::endl;
     writer.join(); reader.detach();
     return rc;
 }
