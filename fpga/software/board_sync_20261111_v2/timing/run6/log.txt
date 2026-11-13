@@ -1,2 +1,0 @@
-v1 encoder, C-core bridge, window 64: start 4096x24 21:15:01
-STRESS_RESULT burst=4096 bursts=24 sent=98304 exact=98304 wrong=0 lost=0 bit_errors=0 bursts_all_ok=24 encoder_done=98304 busy_s=59.4655 ms_per_tb=0.604914 goodput_mbps=17.7877 tx_ifg=8 rx_ifg=128 window=64

@@ -1,7 +1,0 @@
-RELAY_EXIT=0
-STREAM_RESULT seconds=179.979 tbs=59496 bytes=77006936 avg_mbps=3.42293 bursts=4540 bad=4 missing=0 retx=4 recov=0 trig_to=0 sent=59500 undelivered_tbs=0 out_drops=0 rc=0
-77006936 /home/xilinx/claude_nlsg_20261110/live4k/sess_ant2cm_3min/received.h264
-77006936 /home/xilinx/claude_nlsg_20261110/live4k/sess_ant2cm_3min/source.h264
-SOURCE_RECEIVED_EXACT_PASS
-    nan M-V:    nan fd= 736 aq=    0KB vq=    0KB sq=    0B f=0/0   
-

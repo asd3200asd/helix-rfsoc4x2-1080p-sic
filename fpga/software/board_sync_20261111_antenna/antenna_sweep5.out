@@ -1,9 +1,0 @@
-F=1650 VOP=4000 DSA=0 :: sent=32 exact=2 wrong=15 lost=15 bit_errors=79488
-F=1650 VOP=4000 DSA=0 :: sent=32 exact=1 wrong=18 lost=13 bit_errors=95012
-F=1650 VOP=4000 DSA=0 :: sent=32 exact=0 wrong=1 lost=31 bit_errors=5356
-F=1600 VOP=4000 DSA=0 :: sent=32 exact=19 wrong=13 lost=0 bit_errors=22757
-F=1600 VOP=4000 DSA=0 :: sent=32 exact=31 wrong=1 lost=0 bit_errors=5433
-F=1600 VOP=4000 DSA=0 :: sent=32 exact=1 wrong=31 lost=0 bit_errors=116167
-F=1650 VOP=2250 DSA=0 :: sent=32 exact=6 wrong=16 lost=10 bit_errors=84378
-F=1650 VOP=2250 DSA=0 :: sent=32 exact=18 wrong=11 lost=3 bit_errors=57762
-F=1650 VOP=2250 DSA=0 :: sent=32 exact=10 wrong=11 lost=11 bit_errors=53216

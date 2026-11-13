@@ -1,1 +1,0 @@
-../cases/c9_switch/stim.txt c9_switch.out 64

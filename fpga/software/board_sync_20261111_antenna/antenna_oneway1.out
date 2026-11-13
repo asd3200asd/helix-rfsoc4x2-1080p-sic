@@ -1,2 +1,0 @@
-ONEWAY_RESULT mode=both seconds=5.00354 repeat=2 tx_unique=8400 tx_sent=16800 tx_bursts=67 rx_packets=16800 rx_good=8398 rx_bad=5 rx_dup=8397 rx_holes=2 rx_bytes=11226618 out_drops=0
-FILE_DIFFERENT

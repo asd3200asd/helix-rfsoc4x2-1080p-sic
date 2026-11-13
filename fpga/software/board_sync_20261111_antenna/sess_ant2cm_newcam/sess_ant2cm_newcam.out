@@ -1,9 +1,0 @@
-RELAY_EXIT=0
-BURST_STALLED got=255 fed=256 of 256 -> completing
-BURST_COMPLETED
-STREAM_RESULT seconds=624.188 tbs=387773 bytes=514031310 avg_mbps=6.58816 bursts=12242 bad=28098 missing=0 retx=28466 recov=618 trig_to=0 sent=416239 undelivered_tbs=0 out_drops=13 rc=0
-514031310 /home/xilinx/claude_nlsg_20261110/live4k/sess_ant2cm_newcam/received.h264
-514031310 /home/xilinx/claude_nlsg_20261110/live4k/sess_ant2cm_newcam/source.h264
-SOURCE_RECEIVED_EXACT_PASS
-    nan M-V:    nan fd=  40 aq=    0KB vq=    0KB sq=    0B f=0/0   
-

@@ -1,1 +1,0 @@
-"work.tb_psslock" -s "s_9000" 

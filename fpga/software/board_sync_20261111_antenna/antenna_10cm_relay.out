@@ -1,2 +1,0 @@
-STREAM_RESULT seconds=2.10203 tbs=8400 bytes=11229292 avg_mbps=42.7357 bursts=35 bad=216 missing=0 retx=216 recov=0 trig_to=0 sent=8616 undelivered_tbs=0 out_drops=0 rc=0
-FILE_EXACT
