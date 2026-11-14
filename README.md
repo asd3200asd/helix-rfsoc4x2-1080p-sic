@@ -1,53 +1,44 @@
 # HELIX RFSoC4x2 — 雙向同頻全雙工 1080p／4K 視訊＋數位自干擾消除（SIC）
 
-兩片 RFSoC4x2 在**同一頻率、同一時間**互相傳送攝影機 1080p H.264 視訊，兩片板子都用 SIC 消掉自己發射的訊號，只收對方的；收到的視訊可以在瀏覽器即時觀看。基於 [HELIX](docs/HELIX-upstream.md)（split 6、N_RE 73、QPSK、r=490/1024）。
+兩片 RFSoC4x2 在**同一頻率、同一時間**互相傳送攝影機 H.264 視訊（1080p 或 4K），兩片板子都用 SIC 消掉自己發射的訊號，只收對方的；收到的視訊可以在瀏覽器或板子的 DisplayPort 即時觀看。基於 [HELIX](docs/HELIX-upstream.md)（split 6、N_RE 73、QPSK、r=490/1024）。
 
-## 結果 2026-11-14：sic5，雙向 4K
+目前版本：**sic6**（FPGA 映像在 [sic6 Release](../../releases/tag/sic6)）。
 
-| 執行 | 視訊 | 長度 | 板 1 收板 0 | 板 0 收板 1 | 收到自己的同步 | 丟棄 burst |
-|---|---|---|---|---|---|---|
-| e20 | 3840×2160 | 300 s | **99.88 %** | **99.98 %** | 0 / 0 | 0 / 0 |
-| e22 | 3840×2160 | 300 s | **99.92 %** | **99.98 %** | 0 / 0 | 0 / 0 |
-| e21 | 1080p | 90 s | 99.88 % | 99.997 % | 0 / 0 | 0 / 0 |
+## 結果（2026-11-15，sic6，兩片板子同時雙向）
 
-（TB 層級：接收端正確 TB 數對發送端不重複 TB 數。）與 sic3 相比：接收端不再同步到自己發射的 PSS（sic3 4K 時每次執行 9～14 萬次），發射 trigger 不再卡死。改了什麼、所有數據見 [docs/results_20261114.md](docs/results_20261114.md)。
+| 執行 | 視訊 | 長度 | 板 1 收板 0 | 板 0 收板 1 | 丟棄 burst |
+|---|---|---|---|---|---|
+| e27 | 1920×1080 | 300 s | 236869/236890（**99.991 %**） | 237212/237215（**99.999 %**） | 0 / 0 |
+| e29 | 1920×1080 | 600 s | 474500/474643（**99.970 %**） | 474930/474938（**99.998 %**） | 0 / 0 |
+| e28 | 3840×2160 | 300 s | 298327/298819（**99.84 %**） | 298711/298760（**99.98 %**） | 0 / 0 |
 
-## 結果 2026-11-13：sic3，1080p（兩板天線相距約 10 cm）
-
-| 執行 | 長度 | 板 0 收板 1 | 板 1 收板 0 | 備註 |
-|---|---|---|---|---|
-| p2（用本 repo 的 `tools/run_pair.sh`） | 60 s | **99.997 %** | **99.74 %** | |
-| d8 | 60 s | **100.000 %**（0 缺洞） | **100.000 %**（0 缺洞） | 板 1 同時在瀏覽器即時播放 |
-| d10 | 110 s | 99.87 % | 98.54 % | |
-| d9 | 110 s | 99.88 % | 95.64 % | 板 1 發射端 2 次 trigger 逾時 |
-
-百分比是收到的位元組對對方攝影機原始檔逐位元組比對（`holes.py`）；所有執行都沒有混入自己的資料。剩下的損失幾乎都是「某片板子發射 trigger 逾時」同一時刻約 1 秒的中斷（見已知限制）。每一步改了什麼與數據見 [docs/results_20261113.md](docs/results_20261113.md)。
+數字是 TB（1337 位元組的視訊區塊）層級：接收端收到的正確 TB 數對發送端送出的不重複 TB 數。e28／e29 期間板 0 在 DisplayPort 全螢幕播放、板 1 的畫面在 Mac 的 Safari 即時播放。開發過程與每一步的數據見 [docs/results.md](docs/results.md)。
 
 ## 怎麼運作
 
-- 兩片板子都載入 `helix_nlsg_sic5.bit`：接收端在 RF-ADC 之後、AGC 之前有 8 tap 複數 FIR SIC（`fpga/src/rtl/sic/`），SSB 同步區塊有時槽間隔保護（內建 196 µs，執行時改成 240 µs）。
-  - PSS 分流（SSB IP 1.3）：板 0 發 PSS0、只找 PSS1；板 1 發 PSS1、只找 PSS0；選中的 PSS 相關值必須大於另一個才算，所以接收端不會同步到自己。
-  - 發射 trigger 鎖存（stream_manager 1.1）：前一個 burst 還沒送完時到達的 `triggerTX` 會記下來接著送，不會遺失而讓資料卡住 FIFO（以前會讓整片板子的發射端與控制通道停住）。
+- 兩片板子都載入 `helix_nlsg_sic6.bit`：
+  - 接收端在 RF-ADC 之後、AGC 之前有 8 tap 複數 FIR SIC（`fpga/src/rtl/sic/`）。
+  - SSB 同步區塊（SSB IP 1.3）：時槽間隔保護（內建 196 µs，執行時改成 240 µs）；可在執行時選擇偵測 PSS0 或 PSS1，選中的 PSS 相關值必須大於另一個才算偵測。
+  - stream_manager 1.2：發射 burst 還在送時到達的 `triggerTX` 會連同長度記下來接著送（以前會被漏掉，資料留在 FIFO，背壓把和控制共用的網路輸入堵住，整片板子的發射端停住）；並在 reg0 bit2 回報「還在送」，`board/helix_ctrl_service.py` 會等前一個 burst 送完才放行下一個 trigger。
 - `board/host/src/examples/fdx_bidi_claude.cpp`（每片板子同時發自己的攝影機、收對方的）：
   - TB 長度欄位帶節點編號，收到自己編號的 TB 一律丟掉。
-  - 每個 TB 最多送 6 次，分散在連續的 burst；攝影機碼率高（2～6 Mbit/s 隨畫面變動）時自動減少次數（最少 2 次），避免發射端跟不上。
-  - 收到第一個視訊位元組之前先發填充 burst（接收端會當壞包丟掉），讓 SIC 在任何資料送出前就校準好並開啟，開頭不再遺失。
-  - 每次接收 trigger 收 1,000,000 包；0.5 s 沒封包時重新 trigger（主機端掉包時不會永久停住）；發射 trigger 重試時每次重試才鎖控制通道。
-- `board/sic/bidi/bidi_run.sh`：重載 bit、起服務、啟動 `fdx_bidi_claude` 與即時檢視；收到 `go` 後由 `orchestrate2.py` 在填充訊號上校準 SIC（0.3 s）並開啟（AGC Vref 1200），2 秒後開攝影機。
-- `board/sic/bidi/view_server.py`＋`view.html`：板子只把收到的位元組串流出去，**由瀏覽器解碼**（WebCodecs）。在板子上解碼 1080p 會干擾無線鏈路（實測一個方向掉到 90 %）。
-- 頻率：板 0 1649.985 MHz、板 1 1650 MHz（同標稱頻率時兩板載波差約 16～17 kHz；這樣設定後推算兩個方向都在約 2 kHz 內）。
+  - 每個 TB 最多送 6 次（4K 用 3 次），分散在連續的 burst；攝影機碼率高時自動減少次數（最少 2 次）。
+  - 收到第一個視訊位元組之前先發填充 burst，讓 SIC 在資料送出前就校準好並開啟。
+  - 每次接收 trigger 收 1,000,000 包；0.5 s 沒封包時重新 trigger。
+- `board/sic/bidi/bidi_run.sh`：重載 bit、起服務（執行目錄放在 RAM `/dev/shm`，結束後才寫回 SD 卡）、啟動 `fdx_bidi_claude` 與即時檢視；收到 `go` 後由 `orchestrate2.py` 在填充訊號上校準 SIC 並開啟，2 秒後開攝影機。
+- 即時檢視：`view_server.py`＋`view.html` 把收到的位元組串流給瀏覽器解碼（WebCodecs）；`VIEW_DP=1` 時板子用 ffplay 在 DisplayPort 全螢幕播放（`dp_feed.py` 跟著最新的畫面，4K 時只播關鍵幀）。
+- 頻率：板 0 1649.985 MHz、板 1 1650 MHz（同標稱頻率時兩板載波差約 16～17 kHz；這樣設定後兩個方向都在約 2 kHz 內）。
 
 ## 需要的東西
 
-- 兩片 RFSoC4x2，PYNQ 3.1 映像，`xilinx` 帳號可免密碼 sudo；各接一支輸出 H.264 1920×1080 30 fps 的 UVC 攝影機（`/dev/video0`）與 ffmpeg。
+- 兩片 RFSoC4x2，PYNQ 3.1 映像，`xilinx` 帳號可免密碼 sudo；各接一支 UVC 攝影機（`/dev/video0`，H.264 1920×1080；4K 要能出 3840×2160）與 ffmpeg／ffplay。
 - 每片板子的 DAC B、ADC B 各接一支天線。
-- FPGA 映像：[sic5 Release](../../releases/tag/sic5) 的 `helix_nlsg_sic5.bit`／`.hwh`（兩片板子用同一個；`BIT=sic3 PSS=none` 可回到舊版，bit 在 [sic3 Release](../../releases/tag/sic3)）。
-- 4K：攝影機要能輸出 H.264 3840×2160（`VSIZE=3840x2160`）。
-- 即時觀看：支援 WebCodecs 的瀏覽器。實測這支攝影機的 H.264 在 Safari 18.6 正常、Chrome 157 解碼失敗；也可以在板子上用 `VIEW_DP=1` 全螢幕播到 DisplayPort。
+- FPGA 映像：[sic6 Release](../../releases/tag/sic6) 的 `helix_nlsg_sic6.bit`／`.hwh`（兩片板子用同一個）。
+- 瀏覽器即時觀看：支援 WebCodecs 的瀏覽器。實測這支攝影機的 H.264 在 Safari 18.6 正常，Chrome 157 解碼失敗。
 
 ## 安裝（兩片板子都做）
 
-板端工作目錄固定為 `/home/xilinx/claude_nlsg_20261110`，把 `board/` 的內容整個放進去，再放入 bit／hwh：
+板端工作目錄固定為 `/home/xilinx/claude_nlsg_20261110`，把 `board/` 的內容整個放進去，再放入 `helix_nlsg_sic6.bit`／`.hwh`：
 
     cd /home/xilinx/claude_nlsg_20261110/host
     cmake -S src -B build && cmake --build build --target HELIX
@@ -57,49 +48,46 @@
 
 從一台能 ssh 到兩片板子的電腦：
 
-    B0='ssh xilinx@<板0>' B1='ssh xilinx@<板1>' bash tools/run_pair.sh demo 60
+    # 1080p
+    B0='ssh xilinx@<板0>' B1='ssh xilinx@<板1>' bash tools/run_pair.sh demo 300
+    # 4K
+    B0='ssh xilinx@<板0>' B1='ssh xilinx@<板1>' VSIZE=3840x2160 REPEAT=3 bash tools/run_pair.sh demo4k 300
 
-`B0`／`B1` 是「在那片板子上執行 `bash -s`」的指令，要跳板就寫成 `B1='ssh user@跳板 ssh xilinx@<板1>'`。腳本會設時脈、兩邊啟動、同時 `go`、攝影機 60 秒、互相複製原始檔、兩邊各跑 `holes.py`。結果在每片板子的 `sic/bidi/<run>/`。
+`B0`／`B1` 是「在那片板子上執行 `bash -s`」的指令，要跳板就寫成 `B1='ssh user@跳板 ssh xilinx@<板1>'`。腳本會設時脈、兩邊啟動、同時 `go`、攝影機錄指定秒數、互相複製原始檔、兩邊各跑 `holes.py`。結果在每片板子的 `sic/bidi/<run>/`。
 
-可用環境變數覆寫（預設＝上面驗證過的設定）：`BIT`（sic5）、`PSS`（split）、`VSIZE`（1920x1080；4K 用 3840x2160 並建議 `REPEAT=3`）、`VIEW_DP`（1＝板子 DisplayPort 全螢幕播放）、`IFG`（250000）、`HOLDOFF`（58980 拍＝240 µs）、`REPEAT`（最多 6 次）、`AGC`（1200）、`RXN`（1000000）、`BUSY`（1＝服務忙等）。
+可用環境變數（預設＝上表的設定）：`VSIZE`（1920x1080）、`REPEAT`（最多 6 次；4K 用 3）、`VIEW_DP`（1＝板子 DisplayPort 全螢幕播放）、`BIT`（sic6）、`PSS`（none；`split`＝板 0 發 PSS0／找 PSS1、板 1 反過來，見已知限制）、`IFG`（250000）、`HOLDOFF`（58980 拍＝240 µs）、`AGC`（1200）、`RXN`（1000000）、`BUSY`（1）。
 
-雙向 4K（e20／e22 的設定）：
-
-    B0=... B1=... VSIZE=3840x2160 REPEAT=3 bash tools/run_pair.sh demo4k 300
-
-### 即時觀看
+### 瀏覽器即時觀看
 
 執行期間每片板子在 port 18750 提供收到的視訊。WebCodecs 需要安全來源，所以從看畫面的電腦開 ssh 通道，用 localhost 開：
 
     ssh -N -L 18750:127.0.0.1:18750 xilinx@<板子>
-    # 瀏覽器開 http://localhost:18750/
+    # Safari 開 http://localhost:18750/
 
 頁面上方顯示已播放幀數與解碼錯誤數，同樣的數字每 2 秒寫入板子的 `sic/bidi/<run>/view_stats.log`。
 
 ## 重建 FPGA 映像
 
-sic5：從 sic5 Release 下載 `helix-sic5-build-ip.tar.gz`（`ip_local/SSB_v3_5G_IP_v1_3`、`ip_local/stream_manager_1_1`）。實際使用的腳本是 `fpga/scripts/30_build_sic4.tcl`（sic3 工程＋SSB 1.3）與 `31_build_sic5.tcl`（＋stream_manager 1.1），路徑說明見 [docs/results_20261114.md](docs/results_20261114.md)；修改過的 IP 原始碼在 `fpga/ip_mod/`，XSim 測試在 `fpga/sim/`。
+Vivado 2024.1，目標 xczu48dr-ffvg1517-2-e。從 sic6 Release 下載 `helix-build-ip.tar.gz` 在 repo 根目錄解開（`fpga/ip_local`、`fpga/vendor`、`fpga/hls_ldpc_tx/prj3`），然後跑兩次（Vivado 在同一個 session 升級這兩個 IP 後會當掉，所以分兩次）：
 
-sic3：
+    vivado -mode batch -source fpga/scripts/build_sic6_1_upgrade.tcl
+    vivado -mode batch -source fpga/scripts/build_sic6_2_impl.tcl
 
-Vivado 2024.1，目標 xczu48dr-ffvg1517-2-e。從 sic3 Release 下載 `helix-sic3-build-ip.tar.gz` 在 repo 根目錄解開，然後：
-
-    vivado -mode batch -source fpga/scripts/09_build_sic3.tcl
-
-輸出 `fpga/out/helix_nlsg_sic3.bit`／`.hwh`。原始建置紀錄 [docs/build_status_sic3.txt](docs/build_status_sic3.txt)（WNS +0.065 ns）。
+輸出 `fpga/out/helix_nlsg_sic6.bit`／`.hwh`，進度在 `fpga/build_status_sic6.txt`。改過的 IP 原始碼另外放在 `fpga/ip_mod/`（方便看差異），XSim 測試在 `fpga/sim/`。
 
 ## 目錄
 
 | 路徑 | 內容 |
 |---|---|
 | `board/` | 板端工作目錄的檔案：服務（`run_stack.sh`、`nl_tap_bridge.py`、`helix_ctrl_service.py`、`network_layer.*`）、載入 bit、SIC 控制（`sic_ctl.py`、`sic_model.py`、`sic_fit.py`）、時脈 |
-| `board/sic/bidi/` | `bidi_run.sh`、`orchestrate2.py`、`holes.py`、`view_server.py`、`view.html` |
-| `board/host/` | HELIX host 函式庫、`fdx_bidi_claude.cpp`、SSB 波形 |
+| `board/sic/bidi/` | `bidi_run.sh`、`orchestrate2.py`、`holes.py`、`view_server.py`、`view.html`、`dp_feed.py`、`persist.sh` |
+| `board/host/` | HELIX host 函式庫、`fdx_bidi_claude.cpp`、SSB 波形（PSS0 與 PSS1） |
 | `tools/run_pair.sh` | 從控制電腦同時跑兩片板子 |
-| `fpga/` | sic3 的 Vivado 工程、RTL、XDC、LDPC TX HLS、建置腳本；`ip_mod/` sic4／sic5 改過的 IP 原始碼；`sim/` PSS 區分與 trigger 鎖存的 XSim 測試 |
+| `fpga/` | Vivado 工程、RTL、XDC、LDPC TX HLS、建置腳本；`ip_mod/` 改過的 SSB 1.3 與 stream_manager 1.2；`sim/` PSS 區分與發射 trigger 的 XSim 測試 |
 
 ## 已知限制
 
-- sic3 時大約每 1～2 分鐘有一次發射 trigger 逾時，甚至整個發射端卡死；原因是 stream_manager 在 burst 進行中會漏掉 trigger，sic5 已修正（e20／e22 300 秒 0 個丟棄 burst；偶爾 1 次逾時會在重試時恢復）。
-- 4K 只有 2 片板子的雙向測試；中繼（第三個接收點）還沒做。
+- `PSS=split`：1080p 滿載（REPEAT=6）時兩次測試都在 3～4 分鐘後兩片板子的發射端同時停住（e24、e26），原因還沒查清楚，所以預設不用；4K（REPEAT=3）時兩次 300 秒都正常。不分流時接收端有時會解出自己的封包（e29 板 1 rx_self 93824），會被丟掉，不影響傳輸。
+- 偶爾 1 次發射 trigger 逾時，重試時恢復，不會丟 burst。
 - SIC 預測消除量每次執行在約 5～20 dB 之間變動（每次重新設定 RFDC 後相位隨機，所以每次執行都重新校準）。
+- 只有兩片板子的雙向；中繼（第三個接收點）還沒做。

@@ -1,10 +1,14 @@
-# Claude 2026-11-12: sic1 + slot hold-off in the SSB block (local IP copy fpga/ip_local/SSB_v3_5G_IP_v1_2, VLNV SSB_TOP_v3:1.2;
-# packet_sync accepts a detection only when idle and >= 196 us (v1.2 default) after the previous accepted slot start; R1[31:17] overrides) -> fpga/out/helix_nlsg_sic3.bit/.hwh
-# The shared IP repo is not modified. BD backup: design_1.bd.bak_pre_holdoff196
-# From the repository root: vivado -mode batch -source fpga/scripts/09_build_sic3.tcl
-# Progress: fpga/build_status_sic3.txt. Existing bits in fpga/out are not touched.
+# helix_nlsg_sic6: the HELIX split-6 design (fpga/p) + 8-tap SIC + SSB IP 1.3 + stream_manager 1.2.
+#   SSB_TOP_v3 1.3 (fpga/ip_local/SSB_v3_5G_IP_v1_3): slot hold-off (196 us default) and runtime PSS0/PSS1 detection with
+#     discrimination; SSB AXI-lite R2 (0xB0009008) bit0 = detect PSS1, bit1 = no discrimination (R2 = 0: PSS0 as before).
+#   stream_manager 1.2 (fpga/ip_local/stream_manager_1_2): the TX packet_fragmentation keeps a trigger (and its transfer size)
+#     that arrives while a transfer is still running instead of losing it, and reports busy (reg0 bit2) so that
+#     board/helix_ctrl_service.py holds the next trigger until the previous transfer has finished.
+# Needs the Release asset helix-build-ip.tar.gz unpacked in the repository root (fpga/ip_local, fpga/vendor, fpga/hls_ldpc_tx/prj3).
+# Second of two runs, see build_sic6_1_upgrade.tcl.
+# Progress: fpga/build_status_sic6.txt.  Output: fpga/out/helix_nlsg_sic6.bit/.hwh
 set W [file normalize [file join [file dirname [info script]] ..]]
-proc S {m} { global W; set f [open $W/build_status_sic3.txt a]; puts $f "[clock format [clock seconds] -format %H:%M:%S] $m"; close $f }
+proc S {m} { global W; set f [open $W/build_status_sic6.txt a]; puts $f "[clock format [clock seconds] -format %H:%M:%S] $m"; close $f }
 if {[catch {
 open_project $W/p/HELIX_RFSoC4x2_QSFP100G_V46_PSDMA.xpr
 set_property ip_repo_paths [list [file join $W ip_local] [file join $W vendor helix IP_REPO] [file join $W vendor network networklayer_rfsoc4x2_2024_1_2] [file join $W vendor network networklayer_hls_2024_1_2] [file join $W hls_ldpc_tx prj3 sol1 impl ip]] [current_project]
@@ -18,16 +22,10 @@ set_property STRATEGY Performance_ExplorePostRoutePhysOpt $ir
 foreach cfg [get_report_configs -quiet impl_1_route_report_methodology_0] { set_property IS_ENABLED 0 $cfg }
 open_bd_design [get_files design_1.bd]
 if {[get_bd_cells -quiet sic_0] eq ""} { error "sic_0 is not in the block design (run 06_add_sic.tcl first)" }
-set ssb [get_bd_cells rx_blocks/SSB_TOP_v3_0]
-S "SSB cell VLNV before: [get_property VLNV $ssb]"
-if {[get_property VLNV $ssb] ne "xilinx.com:user:SSB_TOP_v3:1.2"} {
-  set bdf [get_files design_1.bd]; file copy -force $bdf [file rootname $bdf].bd.bak_pre_holdoff196
-  upgrade_ip -vlnv xilinx.com:user:SSB_TOP_v3:1.2 [get_ips design_1_SSB_TOP_v3_0_0] -log $W/ip_upgrade_sic3.log
-  validate_bd_design
-  save_bd_design
+foreach {vlnv cell} {xilinx.com:user:SSB_TOP_v3:1.3 rx_blocks/SSB_TOP_v3_0 user.org:user:stream_manager:1.2 stream_manager_0} {
+  if {[get_property VLNV [get_bd_cells $cell]] ne $vlnv} { error "$cell is not $vlnv (run build_sic6_1_upgrade.tcl first)" }
 }
-S "SSB cell VLNV after: [get_property VLNV [get_bd_cells rx_blocks/SSB_TOP_v3_0]]"
-if {[get_property VLNV [get_bd_cells rx_blocks/SSB_TOP_v3_0]] ne "xilinx.com:user:SSB_TOP_v3:1.2"} { error "SSB IP upgrade failed" }
+S "IP versions ok"
 # Tapping m00_axis_tdata with a net removes it from the interface connection (BD 41-1306), so the RF-DAC input must be wired explicitly.
 if {[lsearch [get_bd_pins -of_objects [get_bd_nets -of_objects [get_bd_pins sic_0/dac_tdata]]] /usp_rf_data_converter_0/s00_axis_tdata] < 0} {
   connect_bd_net [get_bd_pins tx_blocks/dac_tdata_tap] [get_bd_pins usp_rf_data_converter_0/s00_axis_tdata]
@@ -40,10 +38,12 @@ S "sic aclk busif: [get_property CONFIG.ASSOCIATED_BUSIF [get_bd_pins sic_0/aclk
 S "locked IPs: [llength [get_ips -quiet -filter {IS_LOCKED == 1}]]; generate_target"
 generate_target all [get_files design_1.bd]
 S "generate_target done"
-set ps [glob -nocomplain $W/p/HELIX_RFSoC4x2_QSFP100G_V46_PSDMA.gen/sources_1/bd/design_1/ipshared/*/src/packet_sync.vhd]
-set ok 0; foreach f $ps { set h [open $f]; if {[string first {HOLDOFF_DEFAULT : integer := 48170} [read $h]] >= 0} { set ok 1 }; close $h }
-S "generated packet_sync copies: $ps ; hold-off present: $ok"
-if {!$ok} { error "generated SSB sources do not contain the hold-off" }
+set gen $W/p/HELIX_RFSoC4x2_QSFP100G_V46_PSDMA.gen/sources_1/bd/design_1/ipshared
+foreach {pat key} {src/packet_sync.vhd {HOLDOFF_DEFAULT : integer := 48170} src/PSS_RUNTIME_DETECTION_TOP.vhd pss_disc_en hdl/packet_fragmentation.v {assign busy}} {
+  set ok 0; foreach f [glob -nocomplain $gen/*/$pat] { set h [open $f]; if {[string first $key [read $h]] >= 0} { set ok 1 }; close $h }
+  S "generated $pat contains '$key': $ok"
+  if {!$ok} { error "generated sources lack $key" }
+}
 set_property source_mgmt_mode All [current_project]; catch {set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]}; catch {set_property INCREMENTAL_CHECKPOINT {} [get_runs synth_1]}
 set_property top design_1_wrapper [get_filesets sources_1]
 update_compile_order -fileset sources_1
@@ -66,8 +66,8 @@ S "impl_1: [get_property STATUS $ir] WNS=[get_property STATS.WNS $ir] TNS=[get_p
 if {![string match *Complete* [get_property STATUS $ir]]} { error "implementation failed" }
 set od $W/out; file mkdir $od
 set bit [lindex [glob -nocomplain [get_property DIRECTORY $ir]/*.bit] 0]
-file copy -force $bit $od/helix_nlsg_sic3.bit
-file copy -force $W/p/HELIX_RFSoC4x2_QSFP100G_V46_PSDMA.gen/sources_1/bd/design_1/hw_handoff/design_1.hwh $od/helix_nlsg_sic3.hwh
-S "BUILD_DONE bit=$od/helix_nlsg_sic3.bit"
+file copy -force $bit $od/helix_nlsg_sic6.bit
+file copy -force $W/p/HELIX_RFSoC4x2_QSFP100G_V46_PSDMA.gen/sources_1/bd/design_1/hw_handoff/design_1.hwh $od/helix_nlsg_sic6.hwh
+S "BUILD_DONE bit=$od/helix_nlsg_sic6.bit"
 } err]} { S "BUILD_FAILED: $err"; puts stderr $err; exit 1 }
 exit

@@ -50,7 +50,9 @@ module packet_fragmentation #(parameter LATCH_TRIGGER = 0) (
     output reg transfer_init,
     output reg transfer_completed,
     output reg slot_processed,
-    output reg reset_out
+    output reg reset_out,
+
+    output wire busy
 
     );
 
@@ -78,6 +80,7 @@ reg trigger_r,trigger_rising_edge;
 reg trig_q, pend; reg [31:0] pend_ts, cur_ts;
 wire trig_edge = trigger & ~trig_q;
 wire [31:0] ts_eff = LATCH_TRIGGER ? cur_ts : transfer_size;
+assign busy = (state_w != WAIT_TRIGGER) || pend;
 
 
 always @ (posedge clk) begin

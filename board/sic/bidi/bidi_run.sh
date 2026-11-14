@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude 2026-11-13: one board of the two-board full-duplex video test.
 # usage: bash sic/bidi/bidi_run.sh <run> <node 0|1> <freq_MHz> <camera_s>        then, on BOTH boards: touch sic/bidi/<run>/go
-#   1. reload helix_nlsg_sic3.bit + services, start fdx_bidi_claude (both, filler bursts until the first video byte) reading
+#   1. reload helix_nlsg_$BIT.bit (default sic5) + services, start fdx_bidi_claude (both, filler bursts until the first video byte) reading
 #      sic/bidi/<run>/in.fifo and writing the received video to <run>/received.h264; start the live viewer; print ONEWAY_READY.
 #   2. when <run>/go appears: orchestrate2.py calibrates the SIC on the filler (CAL s after go) and switches it on 0.1 s later,
 #      the camera (1080p30 H.264, -c copy, camera_s seconds) starts CAMDELAY s after go -> source.h264 + in.fifo.
@@ -24,12 +24,11 @@ cd $W || exit 1
 if [ "${VIEW_DP:-0}" = 1 ]; then CB=${CTRL_BUSY-}; else CB=${CTRL_BUSY-${BUSY-1}}; fi
 # 2026-11-14: VSIZE=3840x2160 for the camera's 4K H.264 (about 11 Mbit/s; use REPEAT=3).  The board cannot decode 4K in real time,
 # so the DisplayPort player then shows only the IDR frames (every 100 frames, about 4 s).
-# 2026-11-14: BIT=sic4 (SSB IP 1.3, runtime PSS select + PSS0/PSS1 discrimination).  PSS=split: node 1 transmits PSS1 and its receiver
-# looks for PSS0, node 0 transmits PSS0 and looks for PSS1, so neither receiver synchronises to its own transmitter (needs BIT=sic4).
-# 2026-11-14: default BIT=sic5 (= sic4 + stream_manager 1.1: a TX trigger that arrives during a running burst is kept, not lost) and
-# PSS=split.  BIT=sic3 PSS=none gives the 2026-11-13 behaviour.
-BIT=${BIT:-sic5}; RXSEL=""; SSBF=""
-if [ "${PSS:-split}" = split ]; then if [ "$NODE" = 1 ]; then SSBF=matlab/TX_data/QPSK/N_RE_73_RATE_490/slotFR2_CH1_SSB_TX1_PSS1.txt; RXSEL=0; else RXSEL=1; fi; fi
+# BIT=sic6 (default): SSB IP 1.3 + stream_manager 1.2, see README.  PSS=split (optional, needs SSB IP 1.3): node 1 transmits PSS1
+# and its receiver looks for PSS0, node 0 the reverse.  2026-11-15: with split, 1080p at full load (REPEAT=6) stalled both
+# transmitters after 3-4 min (e24, e26); without it (default) 1080p and 4K ran 300 s without a dropped burst (e27, e28).
+BIT=${BIT:-sic6}; RXSEL=""; SSBF=""
+if [ "${PSS:-none}" = split ]; then if [ "$NODE" = 1 ]; then SSBF=matlab/TX_data/QPSK/N_RE_73_RATE_490/slotFR2_CH1_SSB_TX1_PSS1.txt; RXSEL=0; else RXSEL=1; fi; fi
 VSIZE=${VSIZE:-1920x1080}; DP_SKIP=""; [ "$VSIZE" = 1920x1080 ] || DP_SKIP="-skip_frame nokey"
 sudo pkill -KILL -f 'sic/bidi/[^ ]*/go'; sudo pkill -KILL -f '[f]fmpeg -nostdin'; sudo pkill -KILL -f 'sic/bidi/[v]iew_server.py'; sudo pkill -f '[f]fmpeg .*-f mpjpeg'; sudo pkill -f '[t]ail -c 0 -F .*received.h264'; sudo pkill -f '[f]fplay -hide_banner'
 # 2026-11-13: up to 3 attempts.  After another bitstream (Codex R3) had been loaded, the bridge once died right after start-up with

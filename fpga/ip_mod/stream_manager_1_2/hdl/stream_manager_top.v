@@ -167,6 +167,7 @@
 		.ifg(ifg_rx),
 		.transfer_size(ts_rx),
 		.transfer_completed(control_i[1]),
+		.busy(),
 		.transfer_init(rx_init),
 		.slot_processed(slot_recv),
 		.reset_out(rx_rst_out)
@@ -195,6 +196,7 @@
 		.transfer_size(ts_tx),
 		.slot_processed(),
 		.transfer_completed(control_i[0]),
+		.busy(control_i[2]),
 		.transfer_init(tx_init),
 		.reset_out(tx_rst_out)
 	);

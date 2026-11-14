@@ -7,7 +7,7 @@ def afi():
     return out
 print("AFI before (rd,wr; 0=128b 1=64b 2=32b):", afi(), flush=True)
 if "--load" in sys.argv:
-    ol = Overlay("helix_nlsg_sic5.bit"); print("LOADED", flush=True); time.sleep(1)
+    ol = Overlay("helix_nlsg_sic6.bit"); print("LOADED", flush=True); time.sleep(1)
     print("AFI after:", afi(), flush=True)
     d = MMIO(0xB0100000, 0x1000)
     print("DMA MM2S CR/SR = 0x%08x 0x%08x  S2MM CR/SR = 0x%08x 0x%08x" % (d.read(0), d.read(4), d.read(0x30), d.read(0x34)), flush=True)
