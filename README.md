@@ -73,7 +73,7 @@ Vivado 2024.1，目標 xczu48dr-ffvg1517-2-e。從 sic6 Release 下載 `helix-bu
     vivado -mode batch -source fpga/scripts/build_sic6_1_upgrade.tcl
     vivado -mode batch -source fpga/scripts/build_sic6_2_impl.tcl
 
-輸出 `fpga/out/helix_nlsg_sic6.bit`／`.hwh`，進度在 `fpga/build_status_sic6.txt`。改過的 IP 原始碼另外放在 `fpga/ip_mod/`（方便看差異），XSim 測試在 `fpga/sim/`。
+輸出 `fpga/out/helix_nlsg_sic6.bit`／`.hwh`，進度在 `fpga/build_status_sic6.txt`。2026-11-15 從乾淨 clone＋Release 的 `helix-build-ip.tar.gz` 照這兩步重建過：WNS +0.0146 ns、WHS +0.0058 ns，與 Release 的 bit 相同。Vivado 2024.1 在這台機器上偶爾會 access violation 當掉（與腳本無關），重跑同一步即可。改過的 IP 原始碼另外放在 `fpga/ip_mod/`（方便看差異），XSim 測試在 `fpga/sim/`。
 
 ## 目錄
 
