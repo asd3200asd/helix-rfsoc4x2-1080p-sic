@@ -30,7 +30,9 @@ if os.environ.get('HOLDOFF'):   # slot hold-off of helix_nlsg_sic2.bit: SSB R1[3
 def wait_until(t):
     while time.monotonic_ns() < T0 + int(t * 1e9): time.sleep(0.002)
 wait_until(cal_at)
-try:
+# 2026-11-13: best of up to CAL_TRIES fits (stop early at CAL_MIN_DB, give up after CAL_MAX_S); one weak fit (3.8 dB predicted, run e5)
+# had cost 6 % of the received TBs.  The fit with the highest predicted cancellation is loaded.
+def fit_once():
     x, y = s.capture(0, 800, timeout=5.0); x, y = c(x), c(y)
     lag = find_delay(x, y, 2048); d0 = lag - PRE
     n = np.arange(d0 + TAPS + 8, len(x))
@@ -38,14 +40,23 @@ try:
     G = A.conj().T @ A; G += 1e-6 * np.trace(G).real / TAPS * np.eye(TAPS)
     h = np.linalg.solve(G, A.conj().T @ y[n]); hq = quantize(h)
     res = y[n] - A @ ((hq[:, 0] + 1j * hq[:, 1]) / 32768)
+    pred = float(10 * np.log10(np.mean(abs(y[n]) ** 2) / np.mean(abs(res) ** 2)))
+    info = dict(lag=int(lag), cfg_delay=int(d0), coef_q15=hq.tolist(), ref_rms=float(np.sqrt(np.mean(abs(x[n]) ** 2))), si_power=float(np.mean(abs(y[n]) ** 2)),
+                residual_power=float(np.mean(abs(res) ** 2)), predicted_dB=pred, adc_peak=int(max(abs(y.real).max(), abs(y.imag).max())))
+    return pred, info, hq, d0, x, y
+tries = []
+try:
+    best = None; tc = time.monotonic()
+    for k in range(int(os.environ.get('CAL_TRIES', '4'))):
+        r = fit_once(); tries.append(round(r[0], 2))
+        if best is None or r[0] > best[0]: best = r
+        if r[0] >= float(os.environ.get('CAL_MIN_DB', '10')) or time.monotonic() - tc > float(os.environ.get('CAL_MAX_S', '1.2')): break
+    pred, info, hq, d0, x, y = best
     s.wr(0x10, d0); s.set_coef([tuple(int(v) for v in r) for r in hq])
-    ev['cal'] = dict(t_ns=time.monotonic_ns(), lag=int(lag), cfg_delay=int(d0), coef_q15=hq.tolist(),
-                     ref_rms=float(np.sqrt(np.mean(abs(x[n]) ** 2))), si_power=float(np.mean(abs(y[n]) ** 2)),
-                     residual_power=float(np.mean(abs(res) ** 2)), predicted_dB=float(10 * np.log10(np.mean(abs(y[n]) ** 2) / np.mean(abs(res) ** 2))),
-                     adc_peak=int(max(abs(y.real).max(), abs(y.imag).max())))
+    info['t_ns'] = time.monotonic_ns(); info['tries'] = tries; ev['cal'] = info
     np.savez(os.path.join(out, 'cal_capture.npz'), x=x, y=y)
 except SystemExit as e:
-    ev['cal'] = dict(error=str(e))
+    ev['cal'] = dict(error=str(e), tries=tries)
 save()
 for item in sched.split(','):
     f = item.split(':'); t = float(f[0]); st = int(f[1]); ag = f[2] if len(f) > 2 else 'k'

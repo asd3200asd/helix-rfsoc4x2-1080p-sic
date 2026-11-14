@@ -1,37 +1,64 @@
 <!doctype html><meta charset=utf-8><title>HELIX full-duplex - received video</title>
-<style>html,body{margin:0;height:100%;background:#000;color:#bbb;font:13px sans-serif}canvas{width:100vw;height:calc(100vh - 22px);object-fit:contain;display:block}#s{height:22px;line-height:22px;padding:0 8px}</style>
+<style>html,body{margin:0;height:100%;background:#000;color:#bbb;font:13px sans-serif}canvas{width:100vw;height:calc(100vh - 22px);object-fit:contain;display:block}#s{height:22px;line-height:22px;padding:0 8px;white-space:nowrap;overflow:hidden}</style>
 <div id=s>connecting...</div><canvas id=c width=1920 height=1080></canvas>
 <script>
 // Claude 2026-11-13: plays the raw H.264 (Annex B) stream of /raw with WebCodecs.  The camera stream is one slice per frame,
 // SPS+PPS+SEI before every IDR (every 100 frames), so each slice NAL closes one frame.  After a decoder error (a hole in the
 // received data) the decoder is reset and waits for the next IDR.
+// 2026-11-13 (evening): status on its own 1 s timer (bytes, frames, decoder queue, last error); the stream is re-opened when
+// no data arrived for 3 s or the reader failed; parsing scans only the new bytes.
 const S = document.getElementById('s'), cv = document.getElementById('c'), g = cv.getContext('2d');
-let lastPost = 0, dec = null, needKey = true, ts = 0, shown = 0, errs = 0, t0 = performance.now(), last = 0, pending = [];
+let dec = null, needKey = true, ts = 0, shown = 0, errs = 0, t0 = performance.now(), pending = [], sps = null;
+let lastSnap = 0, bytes = 0, lastData = performance.now(), conns = 0, lastErr = '', reader = null, lastPost = 0, fShown = 0, fT = performance.now(), fps = 0;
+// 2026-11-13: use Safari on macOS.  Chrome 157 (Windows and macOS, software and VideoToolbox) cannot decode this camera's stream:
+// only IDR frames or a green picture; Safari 18.6 decoded 120/120 frames (sic/bidi/dtest.html).  ?hw=1 / ?sw=1 force a decoder.
+const Q = new URLSearchParams(location.search), HW = Q.get('hw') === '1', SW = Q.get('sw') === '1', AVCC = Q.get('fmt') === 'avcc';   // 2026-11-13: Annex B by default (?fmt=avcc: description + length prefixes)
+let pps = null;
+// 2026-11-13: optional (?fix=1, did not help): the camera's SPS has VUI but no bitstream_restriction; appends bitstream_restriction with max_num_reorder_frames=0, max_dec_frame_buffering=1.
+const FIX = Q.get('fix') === '1';
+function fixSps(nal) {
+  const r = []; for (let i = 0; i < nal.length; i++) { if (i >= 2 && nal[i] === 3 && nal[i - 1] === 0 && nal[i - 2] === 0) continue; r.push(nal[i]); }
+  const bits = []; for (const b of r) for (let k = 7; k >= 0; k--) bits.push((b >> k) & 1);
+  let p = bits.lastIndexOf(1); if (p < 1 || bits[p - 1] !== 0) return nal;           // last VUI field must be bitstream_restriction_flag = 0
+  const out = bits.slice(0, p - 1); out.push(1);
+  const ue = v => { const s = (v + 1).toString(2); for (let i = 1; i < s.length; i++) out.push(0); for (const c of s) out.push(+c); };
+  out.push(1); ue(2); ue(1); ue(16); ue(16); ue(0); ue(1); out.push(1); while (out.length % 8) out.push(0);
+  const by = []; for (let i = 0; i < out.length; i += 8) { let v = 0; for (let k = 0; k < 8; k++) v = (v << 1) | out[i + k]; by.push(v); }
+  const e = []; let z = 0; for (const b of by) { if (z >= 2 && b <= 3) { e.push(3); z = 0; } e.push(b); z = b === 0 ? z + 1 : 0; }
+  return new Uint8Array(e);
+}
 function hex(b) { return b.toString(16).padStart(2, '0'); }
-function mkdec(sps) {
+function mkdec(s) {
   if (dec) try { dec.close(); } catch (e) {}
   dec = new VideoDecoder({ output: f => { g.drawImage(f, 0, 0, cv.width, cv.height); f.close(); shown++; },
-                           error: e => { errs++; needKey = true; dec = null; } });
-  dec.configure({ codec: 'avc1.' + hex(sps[1]) + hex(sps[2]) + hex(sps[3]), optimizeForLatency: true });
+                           error: e => { errs++; lastErr = String(e); needKey = true; dec = null; } });
+  const cfg = { codec: 'avc1.' + hex(s[1]) + hex(s[2]) + hex(s[3]), optimizeForLatency: true };
+  if (HW) cfg.hardwareAcceleration = 'prefer-hardware'; if (SW) cfg.hardwareAcceleration = 'prefer-software';
+  if (AVCC && pps) cfg.description = new Uint8Array([1, s[1], s[2], s[3], 0xff, 0xe1, s.length >> 8, s.length & 255, ...s, 1, pps.length >> 8, pps.length & 255, ...pps]);
+  dec.configure(cfg);
 }
-let sps = null;
 function frame(nals) {          // nals: array of Uint8Array without start codes
   let key = false;
-  for (const n of nals) { const t = n[0] & 31; if (t === 7) sps = n; if (t === 5) key = true; }
+  if (FIX) nals = nals.map(n => (n[0] & 31) === 7 ? fixSps(n) : n);
+  for (const n of nals) { const t = n[0] & 31; if (t === 7) sps = n; if (t === 8) pps = n; if (t === 5) key = true; }
+  if (AVCC) nals = nals.filter(n => { const t = n[0] & 31; return t !== 7 && t !== 8 && t !== 9; });
   if (needKey && !key) return;
   if (!dec || dec.state === 'closed') { if (!sps) return; mkdec(sps); }
+  if (dec.decodeQueueSize > 60) { needKey = true; return; }          // decoder far behind: skip to the next IDR
   let len = 0; for (const n of nals) len += 4 + n.length;
   const buf = new Uint8Array(len); let o = 0;
-  for (const n of nals) { buf.set([0, 0, 0, 1], o); buf.set(n, o + 4); o += 4 + n.length; }
+  for (const n of nals) { if (AVCC) buf.set([n.length >>> 24, (n.length >> 16) & 255, (n.length >> 8) & 255, n.length & 255], o); else buf.set([0, 0, 0, 1], o); buf.set(n, o + 4); o += 4 + n.length; }
   try { dec.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: ts, data: buf })); ts += 33333; needKey = false; }
-  catch (e) { errs++; needKey = true; dec = null; }
+  catch (e) { errs++; lastErr = String(e); needKey = true; dec = null; }
 }
-async function run() {
-  if (!('VideoDecoder' in window)) { S.textContent = 'WebCodecs unavailable: open this page as http://localhost:<port>/ through an ssh tunnel (secure context needed)'; return; }
-  const r = (await fetch('/raw', { cache: 'no-store' })).body.getReader();
-  let buf = new Uint8Array(0);
+async function stream() {
+  conns++; pending = []; needKey = true;
+  const r = (await fetch('/raw' + (Q.get('from') === '0' ? '?from=0' : ''), { cache: 'no-store' })).body.getReader(); reader = r;
+  let buf = new Uint8Array(0), scan = 0;
   for (;;) {
-    const { value, done } = await r.read(); if (done) break;
+    const { value, done } = await r.read(); if (done) return 'ended';
+    if (reader !== r) return 'replaced';
+    bytes += value.length; lastData = performance.now();
     const nb = new Uint8Array(buf.length + value.length); nb.set(buf); nb.set(value, buf.length); buf = nb;
     const starts = [];
     for (let i = 0; i + 3 < buf.length; i++) if (buf[i] === 0 && buf[i + 1] === 0 && buf[i + 2] === 1) { starts.push(i + 3); i += 2; }
@@ -43,10 +70,23 @@ async function run() {
       if (t === 1 || t === 5) { frame(pending); pending = []; }
     }
     buf = buf.slice(starts[starts.length - 1] - 3);
-    const now = performance.now(); if (now - last > 500) { last = now; S.textContent = `HELIX full-duplex: received video (live)   frames ${shown}   decode errors ${errs}   ${(shown / ((now - t0) / 1000)).toFixed(1)} fps avg`; 
-      if (now - lastPost > 2000) { lastPost = now; fetch('/stat', { method: 'POST', body: JSON.stringify({ t: Math.round((now - t0) / 1000), frames: shown, errors: errs, w: cv.width, h: cv.height }) }).catch(() => {}); } }
   }
-  S.textContent += '   (stream ended)';
 }
+async function run() {
+  if (!('VideoDecoder' in window)) { S.textContent = 'WebCodecs unavailable: open this page as http://localhost:<port>/ through an ssh tunnel (secure context needed)'; return; }
+  for (;;) {
+    try { lastErr = 'stream ' + await stream(); } catch (e) { lastErr = String(e); }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+setInterval(() => {
+  const now = performance.now();
+  if (now - fT >= 1000) { fps = (shown - fShown) * 1000 / (now - fT); fShown = shown; fT = now; }
+  if (reader && now - lastData > 3000) { const r = reader; reader = null; lastData = now; lastErr = 'no data 3 s: reconnect'; try { r.cancel(); } catch (e) {} }
+  S.textContent = `HELIX full-duplex: received video (live)   ${fps.toFixed(1)} fps   frames ${shown}   decode errors ${errs}   ${(bytes / 1e6).toFixed(1)} MB   queue ${dec ? dec.decodeQueueSize : '-'}   connects ${conns}` + (lastErr ? '   last: ' + lastErr : '');
+  if (now - lastPost > 2000) { lastPost = now; fetch('/stat', { method: 'POST', body: JSON.stringify({ t: Math.round((now - t0) / 1000), frames: shown, errors: errs, fps: +fps.toFixed(1), mb: +(bytes / 1e6).toFixed(1), conns, mode: (AVCC ? 'avcc' : 'annexb') + (FIX ? '+fix' : '') + (HW ? '/hw' : SW ? '/sw' : '/auto'), last: lastErr.slice(0, 300) }) }).catch(() => {}); }
+  if (now - lastSnap > 5000 && shown) { lastSnap = now; const o = document.createElement('canvas'); o.width = 960; o.height = 540; o.getContext('2d').drawImage(cv, 0, 0, 960, 540);   // what this page shows -> <run_dir>/snap.jpg
+    o.toBlob(b => { if (b) fetch('/snap', { method: 'POST', body: b }).catch(() => {}); }, 'image/jpeg', 0.7); }
+}, 1000);
 run();
 </script>

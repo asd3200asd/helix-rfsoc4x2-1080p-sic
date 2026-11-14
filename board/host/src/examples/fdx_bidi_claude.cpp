@@ -45,6 +45,11 @@ static uint64_t now() { timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (
 static uint32_t crc_tab[256];
 static void crc_init() { for (uint32_t i = 0; i < 256; i++) { uint32_t c = i; for (int k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1; crc_tab[i] = c; } }
 static uint32_t crc32(const uint8_t* p, size_t n) { uint32_t c = 0xFFFFFFFFu; while (n--) c = crc_tab[(c ^ *p++) & 0xFF] ^ (c >> 8); return ~c; }
+// 2026-11-13 (TB format v2): the CRC also covers the 4 header bytes (length | node, sequence number), CRC field t[4..8) excluded.
+// Run e4: one copy decoded with a single flipped bit in the sequence field (19489 -> 19553) passed the payload-only CRC and
+// replaced TB 19553.  Both boards must run the same version.
+static uint32_t crc32_tb(const uint8_t* t, size_t n) { uint32_t c = 0xFFFFFFFFu; for (int i = 0; i < 4; i++) c = crc_tab[(c ^ t[i]) & 0xFF] ^ (c >> 8);
+    const uint8_t* p = t + 8; while (n--) c = crc_tab[(c ^ *p++) & 0xFF] ^ (c >> 8); return ~c; }
 static bool trig(helix::helix& r, const char* name, std::vector<std::string> args) { helix::cmd_struct c; c.cmd = name; c.cmdArgs = args; return r.cmd->sendCmd(c, true) == UDP_CMD_ACK; }
 static const size_t TBB = 1345, TXB = 1352, RXB = 1408, HDR = 8, PAY = TBB - HDR, IN_MAX = 16u << 20, OUT_MAX = 6u << 20;
 static std::mutex in_m; static std::vector<uint8_t> in_buf; static std::atomic<bool> in_eof{false};
@@ -111,7 +116,11 @@ int main(int argc, char** argv){
     std::vector<uint8_t> dummy(TXB, 0); dummy[0] = 0xFF; dummy[1] = 0xFF;
     auto paced = [&](size_t B, const std::function<const uint8_t*(size_t)>& get) {     // one TX burst, clock-paced
         static const int test_n = getenv("ONEWAY_TEST_TRIGFAIL") ? atoi(getenv("ONEWAY_TEST_TRIGFAIL")) : 0; static int tcount = 0;   // test hook: pretend every Nth trigger timed out
-        if ((test_n && ++tcount % test_n == 0) || !ctrig("triggerTX ", {std::to_string(B * TXB)})) {
+        // 2026-11-13 ONEWAY_TXLOG=<file>: 24-byte record per burst (u64 t_before_trigger_ns, u64 t_confirmed_ns, u32 B, u32 flag 0 ok / 1 retried / 2 dropped)
+        static FILE* txlog = getenv("ONEWAY_TXLOG") ? fopen(getenv("ONEWAY_TXLOG"), "wb") : nullptr;
+        struct { uint64_t tq, ta; uint32_t b, f; } __attribute__((packed)) te{now(), 0, (uint32_t)B, 0};
+        auto txl = [&] { if (txlog) { te.ta = now(); fwrite(&te, 1, sizeof te, txlog); fflush(txlog); } };
+        if ((test_n && ++tcount % test_n == 0) || !ctrig("triggerTX ", {std::to_string(B * TXB)})) { te.f = 1;
             // 2026-11-12: an unconfirmed trigger must NOT be followed by data.  Data and control share the FPGA network input, so
             // untriggered data fills the TX FIFO, the back-pressure then blocks every later control packet, and the transmitter is
             // dead until the bit is reloaded.  Tx-only mode: reset the TX path (full re-init) and trigger again; if that also
@@ -127,7 +136,8 @@ int main(int argc, char** argv){
                     for (int i = 0; i < 3 && !got; i++) got = radio.udp->control_socket.recv(&late, sizeof late) > 0;   // 3 x 200 ms
                     if (got && late == UDP_CMD_ACK && !(test_n && attempt == 0)) { ok = true; break; }
                     ok = trig(radio, "triggerTX ", {std::to_string(B * TXB)}); }
-                if (!ok) { tx_dropped_bursts++; std::cerr << "ONEWAY_WARN trigger not confirmed after retries: burst dropped" << std::endl; return; } } }
+                if (!ok) { tx_dropped_bursts++; te.f = 2; txl(); std::cerr << "ONEWAY_WARN trigger not confirmed after retries: burst dropped" << std::endl; return; } } }
+        txl();
         const uint64_t t0 = now(); std::vector<uint8_t> p(TXB, 0);
         for (size_t k = 0; k < B; k++) { while (k >= 24 + (now() - t0) / period) usleep(40);
             memcpy(p.data(), get(k), TBB); radio.udp->data_socket.send(p.data(), TXB); }
@@ -162,8 +172,8 @@ int main(int argc, char** argv){
             if (avail < 32 * PAY && !in_eof) usleep(3000);
             size_t n = 0; { std::lock_guard<std::mutex> l(in_m); size_t off = 0; txs.assign(NU * TBB, 0);
                 while (n < NU && off < in_buf.size()) { size_t len = std::min(PAY, in_buf.size() - off); uint8_t* t = txs.data() + n * TBB;
-                    memcpy(t + HDR, in_buf.data() + off, len); uint32_t c = crc32(t + HDR, len); uint16_t sq = seq++;
-                    t[0] = len & 0xFF; t[1] = (len >> 8) | (node << 7); t[2] = sq & 0xFF; t[3] = sq >> 8; memcpy(t + 4, &c, 4); off += len; n++; }
+                    memcpy(t + HDR, in_buf.data() + off, len); uint16_t sq = seq++;
+                    t[0] = len & 0xFF; t[1] = (len >> 8) | (node << 7); t[2] = sq & 0xFF; t[3] = sq >> 8; uint32_t c = crc32_tb(t, len); memcpy(t + 4, &c, 4); off += len; n++; }
                 in_buf.erase(in_buf.begin(), in_buf.begin() + off); }
             if (spread) { txs.resize(n * TBB); send_hist(std::move(txs)); tx_unique += n; continue; }
             paced(n * R, [&](size_t k) { return txs.data() + (k % n) * TBB; }); tx_unique += n; tx_sent += n * R; tx_bursts++; }
@@ -200,9 +210,9 @@ int main(int argc, char** argv){
                     if (!do_tx && wd_s > 0 && rx_pk > 0 && !reinit && idle > wd_s) {   // receive-only watchdog: the FPGA receive path sometimes stops delivering mid-batch
                         reinit = true; drain(true); have = false; mark_drop();   /* a restarted sender begins at seq 0 again */ std::cerr << "ONEWAY_WARN no packets for " << idle << " s: re-initialising the receiver" << std::endl; setup(false); break; }
                     continue; }
-                k++; rx_pk++; t_last = now(); reinit = false; if (pktlog) { struct { uint64_t t; uint8_t ok; uint8_t z; uint16_t sq; uint32_t c; } __attribute__((packed)) e{t_last, 0, 0, 0, 0}; size_t l0 = (rx[0] | (rx[1] << 8)) & 0x7FFF; std::vector<uint8_t> tb0(TBB); memcpy(tb0.data(), rx.data(), 674); memcpy(tb0.data() + 674, rx.data() + 704, 671); uint32_t c0; memcpy(&c0, tb0.data() + 4, 4); e.ok = (l0 && l0 <= PAY && crc32(tb0.data() + HDR, l0) == c0); e.z = rx[1] >> 7;   /* z = sender node id */ e.sq = tb0[2] | (tb0[3] << 8); e.c = c0; fwrite(&e, 1, sizeof e, pktlog); } memcpy(tbv.data(), rx.data(), 674); memcpy(tbv.data() + 674, rx.data() + 704, 671);
+                k++; rx_pk++; t_last = now(); reinit = false; if (pktlog) { struct { uint64_t t; uint8_t ok; uint8_t z; uint16_t sq; uint32_t c; } __attribute__((packed)) e{t_last, 0, 0, 0, 0}; size_t l0 = (rx[0] | (rx[1] << 8)) & 0x7FFF; std::vector<uint8_t> tb0(TBB); memcpy(tb0.data(), rx.data(), 674); memcpy(tb0.data() + 674, rx.data() + 704, 671); uint32_t c0; memcpy(&c0, tb0.data() + 4, 4); e.ok = (l0 && l0 <= PAY && crc32_tb(tb0.data(), l0) == c0); e.z = rx[1] >> 7;   /* z = sender node id */ e.sq = tb0[2] | (tb0[3] << 8); e.c = c0; fwrite(&e, 1, sizeof e, pktlog); } memcpy(tbv.data(), rx.data(), 674); memcpy(tbv.data() + 674, rx.data() + 704, 671);
                 const uint8_t* t = tbv.data(); size_t len = (t[0] | (t[1] << 8)) & 0x7FFF; const unsigned from = t[1] >> 7; uint16_t sq = t[2] | (t[3] << 8); uint32_t c; memcpy(&c, t + 4, 4);
-                if (len == 0 || len > PAY || crc32(t + HDR, len) != c) { rx_bad++;
+                if (len == 0 || len > PAY || crc32_tb(t, len) != c) { rx_bad++;
                     continue; }
                 if (from == node) { rx_self++; continue; }
                 if (!have) { have = true; next = (sq < W) ? 0 : sq; t_stall = now(); }

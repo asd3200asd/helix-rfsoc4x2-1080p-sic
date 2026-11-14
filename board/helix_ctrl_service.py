@@ -40,7 +40,7 @@ class Service:
         import network_layer  # noqa: F401  (registers the NetworkLayer driver)
         from pynq import GPIO, MMIO, Overlay, allocate
         self.verbose = verbose
-        import os; self.busy = bool(os.environ.get("HELIX_BUSY"))   # HELIX_BUSY=1: poll the control DMA without sleeping
+        import os; self.busy = bool(os.environ.get("HELIX_CTRL_BUSY", os.environ.get("HELIX_BUSY")))   # HELIX_BUSY=1: poll the control DMA without sleeping
         self.ol = Overlay(bitfile, download=False)
         self.reg = MMIO(REG_BASE, REG_SPAN)
         self.allocate = allocate

@@ -1,8 +1,18 @@
-# HELIX RFSoC4x2 — 雙向同頻全雙工 1080p 視訊＋數位自干擾消除（SIC）
+# HELIX RFSoC4x2 — 雙向同頻全雙工 1080p／4K 視訊＋數位自干擾消除（SIC）
 
 兩片 RFSoC4x2 在**同一頻率、同一時間**互相傳送攝影機 1080p H.264 視訊，兩片板子都用 SIC 消掉自己發射的訊號，只收對方的；收到的視訊可以在瀏覽器即時觀看。基於 [HELIX](docs/HELIX-upstream.md)（split 6、N_RE 73、QPSK、r=490/1024）。
 
-## 結果（2026-11-13，兩板天線相距約 10 cm）
+## 結果 2026-11-14：sic5，雙向 4K
+
+| 執行 | 視訊 | 長度 | 板 1 收板 0 | 板 0 收板 1 | 收到自己的同步 | 丟棄 burst |
+|---|---|---|---|---|---|---|
+| e20 | 3840×2160 | 300 s | **99.88 %** | **99.98 %** | 0 / 0 | 0 / 0 |
+| e22 | 3840×2160 | 300 s | **99.92 %** | **99.98 %** | 0 / 0 | 0 / 0 |
+| e21 | 1080p | 90 s | 99.88 % | 99.997 % | 0 / 0 | 0 / 0 |
+
+（TB 層級：接收端正確 TB 數對發送端不重複 TB 數。）與 sic3 相比：接收端不再同步到自己發射的 PSS（sic3 4K 時每次執行 9～14 萬次），發射 trigger 不再卡死。改了什麼、所有數據見 [docs/results_20261114.md](docs/results_20261114.md)。
+
+## 結果 2026-11-13：sic3，1080p（兩板天線相距約 10 cm）
 
 | 執行 | 長度 | 板 0 收板 1 | 板 1 收板 0 | 備註 |
 |---|---|---|---|---|
@@ -15,7 +25,9 @@
 
 ## 怎麼運作
 
-- 兩片板子都載入 `helix_nlsg_sic3.bit`：接收端在 RF-ADC 之後、AGC 之前有 8 tap 複數 FIR SIC（`fpga/src/rtl/sic/`），SSB 同步區塊有時槽間隔保護（內建 196 µs，執行時改成 240 µs）。
+- 兩片板子都載入 `helix_nlsg_sic5.bit`：接收端在 RF-ADC 之後、AGC 之前有 8 tap 複數 FIR SIC（`fpga/src/rtl/sic/`），SSB 同步區塊有時槽間隔保護（內建 196 µs，執行時改成 240 µs）。
+  - PSS 分流（SSB IP 1.3）：板 0 發 PSS0、只找 PSS1；板 1 發 PSS1、只找 PSS0；選中的 PSS 相關值必須大於另一個才算，所以接收端不會同步到自己。
+  - 發射 trigger 鎖存（stream_manager 1.1）：前一個 burst 還沒送完時到達的 `triggerTX` 會記下來接著送，不會遺失而讓資料卡住 FIFO（以前會讓整片板子的發射端與控制通道停住）。
 - `board/host/src/examples/fdx_bidi_claude.cpp`（每片板子同時發自己的攝影機、收對方的）：
   - TB 長度欄位帶節點編號，收到自己編號的 TB 一律丟掉。
   - 每個 TB 最多送 6 次，分散在連續的 burst；攝影機碼率高（2～6 Mbit/s 隨畫面變動）時自動減少次數（最少 2 次），避免發射端跟不上。
@@ -29,8 +41,9 @@
 
 - 兩片 RFSoC4x2，PYNQ 3.1 映像，`xilinx` 帳號可免密碼 sudo；各接一支輸出 H.264 1920×1080 30 fps 的 UVC 攝影機（`/dev/video0`）與 ffmpeg。
 - 每片板子的 DAC B、ADC B 各接一支天線。
-- FPGA 映像：[sic3 Release](../../releases/tag/sic3) 的 `helix_nlsg_sic3.bit`／`.hwh`（兩片板子用同一個）。
-- 即時觀看：支援 WebCodecs 的瀏覽器（Chrome、Edge）。
+- FPGA 映像：[sic5 Release](../../releases/tag/sic5) 的 `helix_nlsg_sic5.bit`／`.hwh`（兩片板子用同一個；`BIT=sic3 PSS=none` 可回到舊版，bit 在 [sic3 Release](../../releases/tag/sic3)）。
+- 4K：攝影機要能輸出 H.264 3840×2160（`VSIZE=3840x2160`）。
+- 即時觀看：支援 WebCodecs 的瀏覽器。實測這支攝影機的 H.264 在 Safari 18.6 正常、Chrome 157 解碼失敗；也可以在板子上用 `VIEW_DP=1` 全螢幕播到 DisplayPort。
 
 ## 安裝（兩片板子都做）
 
@@ -48,7 +61,11 @@
 
 `B0`／`B1` 是「在那片板子上執行 `bash -s`」的指令，要跳板就寫成 `B1='ssh user@跳板 ssh xilinx@<板1>'`。腳本會設時脈、兩邊啟動、同時 `go`、攝影機 60 秒、互相複製原始檔、兩邊各跑 `holes.py`。結果在每片板子的 `sic/bidi/<run>/`。
 
-可用環境變數覆寫（預設＝上面驗證過的設定）：`IFG`（250000）、`HOLDOFF`（58980 拍＝240 µs）、`REPEAT`（最多 6 次）、`AGC`（1200）、`RXN`（1000000）、`BUSY`（1＝服務忙等）。
+可用環境變數覆寫（預設＝上面驗證過的設定）：`BIT`（sic5）、`PSS`（split）、`VSIZE`（1920x1080；4K 用 3840x2160 並建議 `REPEAT=3`）、`VIEW_DP`（1＝板子 DisplayPort 全螢幕播放）、`IFG`（250000）、`HOLDOFF`（58980 拍＝240 µs）、`REPEAT`（最多 6 次）、`AGC`（1200）、`RXN`（1000000）、`BUSY`（1＝服務忙等）。
+
+雙向 4K（e20／e22 的設定）：
+
+    B0=... B1=... VSIZE=3840x2160 REPEAT=3 bash tools/run_pair.sh demo4k 300
 
 ### 即時觀看
 
@@ -60,6 +77,10 @@
 頁面上方顯示已播放幀數與解碼錯誤數，同樣的數字每 2 秒寫入板子的 `sic/bidi/<run>/view_stats.log`。
 
 ## 重建 FPGA 映像
+
+sic5：從 sic5 Release 下載 `helix-sic5-build-ip.tar.gz`（`ip_local/SSB_v3_5G_IP_v1_3`、`ip_local/stream_manager_1_1`）。實際使用的腳本是 `fpga/scripts/30_build_sic4.tcl`（sic3 工程＋SSB 1.3）與 `31_build_sic5.tcl`（＋stream_manager 1.1），路徑說明見 [docs/results_20261114.md](docs/results_20261114.md)；修改過的 IP 原始碼在 `fpga/ip_mod/`，XSim 測試在 `fpga/sim/`。
+
+sic3：
 
 Vivado 2024.1，目標 xczu48dr-ffvg1517-2-e。從 sic3 Release 下載 `helix-sic3-build-ip.tar.gz` 在 repo 根目錄解開，然後：
 
@@ -75,9 +96,10 @@ Vivado 2024.1，目標 xczu48dr-ffvg1517-2-e。從 sic3 Release 下載 `helix-si
 | `board/sic/bidi/` | `bidi_run.sh`、`orchestrate2.py`、`holes.py`、`view_server.py`、`view.html` |
 | `board/host/` | HELIX host 函式庫、`fdx_bidi_claude.cpp`、SSB 波形 |
 | `tools/run_pair.sh` | 從控制電腦同時跑兩片板子 |
-| `fpga/` | sic3 的 Vivado 工程、RTL、XDC、LDPC TX HLS、建置腳本 |
+| `fpga/` | sic3 的 Vivado 工程、RTL、XDC、LDPC TX HLS、建置腳本；`ip_mod/` sic4／sic5 改過的 IP 原始碼；`sim/` PSS 區分與 trigger 鎖存的 XSim 測試 |
 
 ## 已知限制
 
-- 大約每 1～2 分鐘，某片板子會有一次發射 trigger 逾時；同一時刻兩個方向都可能中斷約 1 秒（110 秒的 d9 板 1 少了約 4 %）。原因在板子的控制／資料通道（服務與橋接程式），還沒查清楚。
+- sic3 時大約每 1～2 分鐘有一次發射 trigger 逾時，甚至整個發射端卡死；原因是 stream_manager 在 burst 進行中會漏掉 trigger，sic5 已修正（e20／e22 300 秒 0 個丟棄 burst；偶爾 1 次逾時會在重試時恢復）。
+- 4K 只有 2 片板子的雙向測試；中繼（第三個接收點）還沒做。
 - SIC 預測消除量每次執行在約 5～20 dB 之間變動（每次重新設定 RFDC 後相位隨機，所以每次執行都重新校準）。
