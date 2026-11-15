@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>HELIX RFSoC4x2 同頻全雙工 1080p + SIC</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0e1116;--card:#171b22;--line:#2a313c;--fg:#e8ecf1;--dim:#8b95a3;--on:#2fbf71;--off:#e5534b;--acc:#4da3ff;--warn:#e3b341}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px -apple-system,"PingFang TC","Helvetica Neue",sans-serif}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line)}
+header h1{font-size:19px;margin:0;font-weight:600}.sub{color:var(--dim);font-size:13px}
+main{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;padding:12px 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.vid{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+h2{font-size:16px;margin:0 0 8px;font-weight:600}
+button{background:#232a35;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:16px;cursor:pointer}
+button.on{background:var(--on);border-color:var(--on);color:#06210f}button.off{background:var(--off);border-color:var(--off);color:#2a0705}
+.sw{display:flex;gap:8px;margin-bottom:10px}.sw button{flex:1;font-weight:700}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.m{background:#11151b;border:1px solid var(--line);border-radius:8px;padding:8px}.m .k{font-size:12px;color:var(--dim)}.m .v{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}.m .u{font-size:12px;color:var(--dim);margin-left:3px}
+.big{grid-column:1/3}.big .v{font-size:34px}
+canvas{width:100%;height:110px;margin-top:10px;background:#11151b;border:1px solid var(--line);border-radius:8px}
+.legend{font-size:12px;color:var(--dim);margin-top:4px}.legend b{display:inline-block;width:10px;height:3px;vertical-align:middle;margin:0 4px 0 10px}
+#fdx{grid-column:1/3;display:grid;grid-template-columns:1fr 2.4fr 1fr;align-items:center;gap:12px}
+.board{text-align:center}.board .n{font-size:18px;font-weight:650}.board .f{color:var(--dim);font-size:13px}
+.link{position:relative;height:84px}.arrow{position:absolute;left:3%;right:3%;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:14px;font-variant-numeric:tabular-nums;overflow:hidden}
+.arrow.a{top:4px;background:linear-gradient(90deg,#163a5c,#1f5a8f)}.arrow.b{bottom:4px;background:linear-gradient(270deg,#3c2a12,#7a5517)}
+.arrow i{position:absolute;top:0;bottom:0;width:40px;background:rgba(255,255,255,.18);filter:blur(6px)}
+.arrow.a i{animation:ma 1.4s linear infinite}.arrow.b i{animation:mb 1.4s linear infinite}
+@keyframes ma{from{left:-40px}to{left:100%}}@keyframes mb{from{right:-40px}to{right:100%}}
+.note{color:var(--dim);font-size:12px;padding:0 18px 12px}.err{color:var(--warn);font-size:14px}
+</style></head><body>
+<header><div><h1>HELIX RFSoC4x2　同頻全雙工 1080p 視訊＋數位自干擾消除（SIC）</h1><div class="sub" id="sub">連線中…</div></div></header>
+<main>
+<section class="card"><h2>PC 端攝影機 → Mac（Mac 端板子收到、這台 Mac 解碼）</h2><div class="vid"><iframe id="vf" allow="autoplay"></iframe></div>
+<div class="legend" style="margin-top:8px">Mac 端攝影機 → PC 的畫面在 PC 端板子的 DisplayPort 螢幕上。</div></section>
+<section class="card"><h2>Mac 端板子的 SIC</h2>
+<div class="sw"><button id="bon" onclick="setSic(1)">SIC 開</button><button id="boff" onclick="setSic(0)">SIC 關</button><button id="ab" onclick="toggleAB()">自動 A/B</button></div>
+<div class="metrics"><div class="m big"><div class="k">自干擾消除量</div><div class="v" id="cx">–</div></div>
+<div class="m"><div class="k">SIR（SIC 前 → 後）</div><div class="v" id="sir">–</div></div>
+<div class="m"><div class="k">收到 TB／壞封包</div><div class="v" id="rx">–</div></div></div>
+<canvas id="g" width="800" height="160"></canvas>
+<div class="legend"><b style="background:var(--on)"></b>消除量 dB<b style="background:var(--warn)"></b>壞封包 %<b style="background:rgba(229,83,75,.35);height:8px"></b>SIC 關</div></section>
+<section class="card" id="fdx">
+ <div class="board"><div class="n">PC 端板子</div><div class="f">1649.985 MHz</div></div>
+ <div class="link"><div class="arrow a"><i></i><span id="a01">PC → Mac</span></div><div class="arrow b"><i></i><span id="a10">Mac → PC</span></div></div>
+ <div class="board"><div class="n">Mac 端板子</div><div class="f">1650.000 MHz</div><div class="f" id="sm">SIC</div></div>
+</section></main>
+<div class="note">同一頻率範圍、同一時間雙向傳送（兩片板子的晶振相差約 16 kHz，PC 端設低 15 kHz 抵銷）。自干擾消除量＝每秒擷取 8192 個樣本，從發射參考訊號擬合出 ADC 上的自干擾，再算 SIC 之後剩下多少（不含對方的訊號）。SIR＝對方訊號÷自干擾。
+這一頁只連 Mac 端板子（ssh 通道 localhost:18750 影像、18751 本頁與 SIC）；PC 端板子的 SIC 一直開著。</div>
+<script>
+const API=location.origin, VID=new URLSearchParams(location.search).get('v')||'http://localhost:18750/';
+document.getElementById('vf').src=VID;
+let S=null,H=[];
+async function api(p){const r=await fetch(API+p,{cache:'no-store'});return r.json()}
+async function setSic(on){try{await api('/api/sic?on='+on)}catch(e){}poll()}
+let abTimer=null,abState=1;
+function toggleAB(){const b=document.getElementById('ab');if(abTimer){clearInterval(abTimer);abTimer=null;b.classList.remove('on');setSic(1);return}
+ b.classList.add('on');abState=0;setSic(0);abTimer=setInterval(()=>{abState^=1;setSic(abState)},15000)}
+function f(v,d=1){return v==null||isNaN(v)?'–':Number(v).toFixed(d)}
+function draw(){const c=document.getElementById('g'),x=c.getContext('2d'),W=c.width,Hh=c.height;x.clearRect(0,0,W,Hh);if(H.length<2)return;
+ const N=180,dx=W/(N-1),o=N-H.length;
+ H.forEach((p,i)=>{if(!p.sic){x.fillStyle='rgba(229,83,75,.22)';x.fillRect((o+i)*dx-dx/2,0,dx+1,Hh)}});
+ x.strokeStyle='#2a313c';for(const g of [10,20,30,40]){const y=Hh-g/45*Hh;x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();x.fillStyle='#5b6573';x.font='11px sans-serif';x.fillText(g+' dB',4,y-2)}
+ const line=(k,col,sc)=>{x.strokeStyle=col;x.lineWidth=2;x.beginPath();let s=false;H.forEach((p,i)=>{const v=p[k];if(v==null){s=false;return}const y=Hh-Math.max(0,Math.min(1,v/sc))*Hh;if(!s){x.moveTo((o+i)*dx,y);s=true}else x.lineTo((o+i)*dx,y)});x.stroke()};
+ line('cancel_dB','#2fbf71',45);line('bad_pct','#e3b341',100)}
+async function poll(){try{S=await api('/api/stats');const m=S.meas||{},l=S.link||{};
+ document.getElementById('bon').className=S.sic?'on':'';document.getElementById('boff').className=S.sic?'':'off';
+ document.getElementById('sm').innerHTML='SIC <b style="color:'+(S.sic?'var(--on)':'var(--off)')+'">'+(S.sic?'開':'關')+'</b>';
+ document.getElementById('cx').innerHTML=m.error?'<span class="err">'+(m.error==='no run'?'沒有執行中的測試':'等待發射…')+'</span>':f(m.cancel_dB)+'<span class="u">dB</span>';
+ document.getElementById('sir').innerHTML=f(m.sir_before_dB)+' → '+f(m.sir_after_dB)+'<span class="u">dB</span>';
+ document.getElementById('rx').innerHTML=(l.rx_good_s??'–')+'<span class="u">/s</span> · '+f(l.bad_pct,0)+'<span class="u">%</span>';
+ document.getElementById('a01').textContent='PC → Mac　Mac 端收到 '+(l.rx_good_s??'–')+' TB/s（'+f((l.rx_good_s||0)*1337*8/1e6,2)+' Mbit/s 視訊）';
+ document.getElementById('a10').textContent='Mac → PC　Mac 端送出 '+f(l.tx_unique_mbps,2)+' Mbit/s 視訊（含重送 '+f(l.tx_mbps,1)+' Mbit/s）';
+ H=S.history||[];draw();
+ document.getElementById('sub').textContent='Mac 端板子 '+(S.run||'閒置')+(l.t_run!=null?' · t='+l.t_run+' s':'')+'　·　'+new Date().toLocaleTimeString();
+}catch(e){document.getElementById('sub').textContent='連不上 Mac 端板子（'+API+'）';}}
+poll();setInterval(poll,1000);
+</script></body></html>

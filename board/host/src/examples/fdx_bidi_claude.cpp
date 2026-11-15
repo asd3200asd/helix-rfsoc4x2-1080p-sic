@@ -120,7 +120,11 @@ int main(int argc, char** argv){
         static FILE* txlog = getenv("ONEWAY_TXLOG") ? fopen(getenv("ONEWAY_TXLOG"), "wb") : nullptr;
         struct { uint64_t tq, ta; uint32_t b, f; } __attribute__((packed)) te{now(), 0, (uint32_t)B, 0};
         auto txl = [&] { if (txlog) { te.ta = now(); fwrite(&te, 1, sizeof te, txlog); fflush(txlog); } };
-        if ((test_n && ++tcount % test_n == 0) || !ctrig("triggerTX ", {std::to_string(B * TXB)})) { te.f = 1;
+        // 2026-11-15: every burst carries a sequence number; helix_ctrl_service.py executes a sequence number once and only re-ACKs a
+        // repeat, so retrying is safe: a trigger whose ACK was lost is never executed twice, and the host keeps retrying the same
+        // trigger until it is confirmed and then sends its data (a trigger executed without its data used to stop the transmitter).
+        static uint32_t txseq = 0; const std::vector<std::string> targs{std::to_string(B * TXB), std::to_string(++txseq)};
+        if ((test_n && ++tcount % test_n == 0) || !ctrig("triggerTX ", targs)) { te.f = 1;
             // 2026-11-12: an unconfirmed trigger must NOT be followed by data.  Data and control share the FPGA network input, so
             // untriggered data fills the TX FIFO, the back-pressure then blocks every later control packet, and the transmitter is
             // dead until the bit is reloaded.  Tx-only mode: reset the TX path (full re-init) and trigger again; if that also
@@ -129,13 +133,13 @@ int main(int argc, char** argv){
             { /* fdx: always wait for or retry the trigger, never send untriggered data */ bool ok = false;
                 // 2026-11-13 bidi: the control lock is taken per attempt (not for all retries, up to ~5 s), so the receiver can
                 // still re-trigger its next batch in between; otherwise a TX trigger time-out also stalls reception.
-                for (int attempt = 0; attempt < 4 && !ok; attempt++) {
+                for (int attempt = 0; attempt < 100 && !ok && !g_stop; attempt++) {
                     if (attempt) usleep(20000);
                     std::lock_guard<std::mutex> l(cmd_m);
                     uint32_t late = 0; bool got = false;                                   // a late ACK means the trigger WAS executed
                     for (int i = 0; i < 3 && !got; i++) got = radio.udp->control_socket.recv(&late, sizeof late) > 0;   // 3 x 200 ms
                     if (got && late == UDP_CMD_ACK && !(test_n && attempt == 0)) { ok = true; break; }
-                    ok = trig(radio, "triggerTX ", {std::to_string(B * TXB)}); }
+                    ok = trig(radio, "triggerTX ", targs); }
                 if (!ok) { tx_dropped_bursts++; te.f = 2; txl(); std::cerr << "ONEWAY_WARN trigger not confirmed after retries: burst dropped" << std::endl; return; } } }
         txl();
         const uint64_t t0 = now(); std::vector<uint8_t> p(TXB, 0);

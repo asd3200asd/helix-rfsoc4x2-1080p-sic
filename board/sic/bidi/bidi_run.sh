@@ -16,11 +16,17 @@
 #   VIEW=1 browser view http://<board>:18750/ | VIEW_DP=1 also full screen on the board's DisplayPort monitor | MODE=rx|tx (diagnostics)
 set -u
 N=$1; NODE=$2; F=$3; SEC=$4
-IFG=${IFG:-250000}; HOLDOFF=${HOLDOFF:-58980}; REPEAT=${REPEAT:-6}; AGC=${AGC:-1200}; CAL=${CAL:-0.3}; CAMDELAY=${CAMDELAY:-2}
+IFG=${IFG:-250000}; HOLDOFF=${HOLDOFF:-58980}; REPEAT=${REPEAT:-3}; AGC=${AGC:-1200}; CAL=${CAL:-0.3}; CAMDELAY=${CAMDELAY:-2}
 W=/home/xilinx/claude_nlsg_20261110; D=$W/sic/bidi/$N; R=/dev/shm/bidi/$N; PY=/usr/local/share/pynq-venv/bin/python3
 cd $W || exit 1
 # 2026-11-13: with VIEW_DP=1 the control service polls without spinning (CTRL_BUSY, default off then) so the DisplayPort player gets a
 # core (this board has only 3 online CPUs); the bridge keeps spinning (BUSY).  Without VIEW_DP both follow BUSY as before.
+# 2026-11-15: the DisplayPort player runs at normal priority with 3 threads and dp_feed jumps ahead when it falls ~300 KB (~1 s) behind
+# (was nice 19, 2 threads, 1 MB).  The camera sends 25 fps but raw H.264 has no timing: ffplay paced at exactly 25 fps can never catch up after
+# a hiccup, so the delay only grew (up to ~3 s, then a jump).  It now plays at up to DP_FPS=50 with the video as clock: when behind it
+# catches up, when caught up it waits for the next frame.  The X screen is 16 bit: converting to rgb565 (DP_VF) instead of bgra doubles
+# what ffplay can show full screen on this board (no GPU): 1080p 10 -> 20 fps measured without radio load; with the radio running it
+# still falls behind, so it shows every second frame (12.5 fps, all frames decoded): the screen then stays ~0.03 s behind the received file.
 if [ "${VIEW_DP:-0}" = 1 ]; then CB=${CTRL_BUSY-}; else CB=${CTRL_BUSY-${BUSY-1}}; fi
 # 2026-11-14: VSIZE=3840x2160 for the camera's 4K H.264 (about 11 Mbit/s; use REPEAT=3).  The board cannot decode 4K in real time,
 # so the DisplayPort player then shows only the IDR frames (every 100 frames, about 4 s).
@@ -29,8 +35,8 @@ if [ "${VIEW_DP:-0}" = 1 ]; then CB=${CTRL_BUSY-}; else CB=${CTRL_BUSY-${BUSY-1}
 # transmitters after 3-4 min (e24, e26); without it (default) 1080p and 4K ran 300 s without a dropped burst (e27, e28).
 BIT=${BIT:-sic6}; RXSEL=""; SSBF=""
 if [ "${PSS:-none}" = split ]; then if [ "$NODE" = 1 ]; then SSBF=matlab/TX_data/QPSK/N_RE_73_RATE_490/slotFR2_CH1_SSB_TX1_PSS1.txt; RXSEL=0; else RXSEL=1; fi; fi
-VSIZE=${VSIZE:-1920x1080}; DP_SKIP=""; [ "$VSIZE" = 1920x1080 ] || DP_SKIP="-skip_frame nokey"
-sudo pkill -KILL -f 'sic/bidi/[^ ]*/go'; sudo pkill -KILL -f '[f]fmpeg -nostdin'; sudo pkill -KILL -f 'sic/bidi/[v]iew_server.py'; sudo pkill -f '[f]fmpeg .*-f mpjpeg'; sudo pkill -f '[t]ail -c 0 -F .*received.h264'; sudo pkill -f '[f]fplay -hide_banner'
+VSIZE=${VSIZE:-1920x1080}; DP_SKIP=""; case $VSIZE in 3840x2160|2560x1440) DP_SKIP="-skip_frame nokey" ;; esac   # only 4K/1440p: the board cannot decode those in real time
+sudo pkill -KILL -f 'sic/bidi/[s]ic_api.py'; sudo pkill -KILL -f 'sic/bidi/[^ ]*/go'; sudo pkill -KILL -f '[f]fmpeg -nostdin'; sudo pkill -KILL -f 'sic/bidi/[v]iew_server.py'; sudo pkill -f '[f]fmpeg .*-f mpjpeg'; sudo pkill -f '[t]ail -c 0 -F .*received.h264'; sudo pkill -f '[f]fplay -hide_banner'
 # 2026-11-13: up to 3 attempts.  After another bitstream (Codex R3) had been loaded, the bridge once died right after start-up with
 # "DMA error ... status=0x00014019" and the host program reported "Platform is not available"; reloading the bit and restarting worked.
 for attempt in 1 2 3; do
@@ -48,9 +54,12 @@ echo "START_RETRY $attempt: $(grep -a 'DMA error' /dev/shm/bridge_run.log | tail
 done
 if [ -n "$RXSEL" ]; then sudo $PY -c "import mmap,os; fd=os.open('/dev/mem',os.O_RDWR|os.O_SYNC); m=memoryview(mmap.mmap(fd,0x1000,offset=0xB0009000)).cast('I'); m[2]=$RXSEL|(${PSS_NODISC:-0}<<1); print('SSB_R2',hex(m[2]))" 2>&1 | tail -1; fi   # SSB R2: bit0 = detect PSS1, bit1 = no discrimination
 if [ "${VIEW:-1}" = 1 ]; then (setsid nohup $PY sic/bidi/view_server.py "$D" 18750 $((SEC + 300)) > "$D/view.log" 2>&1 < /dev/null &); fi
+# 2026-11-15: SIC demo API (port 18751, demo page /), started only now that the bit is loaded (see sic_api.py SAFETY).  Default only on node 1 (Mac side): the demo page connects
+# to that board only.  SIC_API=0/1 overrides.
+if [ "${SIC_API:-$NODE}" = 1 ]; then (sudo setsid nohup env HELIX_NODE=$NODE $PY sic/bidi/sic_api.py > /dev/shm/sic_api.log 2>&1 < /dev/null &); fi
 if [ "${VIEW_DP:-0}" = 1 ]; then
   AUTH=$(ps -C Xorg -o args= | sed -n 's/.* -auth \([^ ]*\).*/\1/p' | head -1)
-  (sudo setsid nohup bash -c "$PY $W/sic/bidi/dp_feed.py '$D/received.h264' 2>'$D/dp_feed.log' | env DISPLAY=:0 XAUTHORITY=$AUTH SDL_VIDEODRIVER=x11 SDL_RENDER_DRIVER=software timeout $((SEC + 120)) nice -n 19 ffplay -hide_banner -loglevel error -fs -an -window_title 'HELIX received' -fflags nobuffer -flags low_delay -framedrop -sync ext $DP_SKIP -threads ${DP_THREADS:-2} -skip_loop_filter all -probesize 65536 -f h264 -framerate 25 -vf format=bgra -i pipe:0" > "$D/dp.log" 2>&1 < /dev/null &)
+  (sudo setsid nohup bash -c "$PY $W/sic/bidi/dp_feed.py '$D/received.h264' ${DP_MAXLAG:-300000} 2>'$D/dp_feed.log' | env DISPLAY=:0 XAUTHORITY=$AUTH SDL_VIDEODRIVER=x11 SDL_RENDER_DRIVER=software timeout $((SEC + 120)) ffplay -hide_banner -loglevel error -fs -an -window_title 'HELIX received' -fflags nobuffer -flags low_delay -sync video $DP_SKIP -threads ${DP_THREADS:-3} -skip_loop_filter all -probesize 65536 -f h264 -framerate ${DP_FPS:-50} -vf ${DP_VF:-framestep=2,format=rgb565le} -i pipe:0" > "$D/dp.log" 2>&1 < /dev/null &)
 fi
 (sudo setsid nohup bash -c "while [ ! -e '$D/go' ]; do sleep 0.02; done; date +%s.%N > '$D/go_at'
   env HOLDOFF=$HOLDOFF $PY sic/bidi/orchestrate2.py '$D' '$D/fdx.log' $CAL $(awk "BEGIN{print $CAL+0.1}"):1:$AGC $((SEC + 25)) > '$D/orch.log' 2>&1 &

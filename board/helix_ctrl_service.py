@@ -41,7 +41,7 @@ class Service:
         from pynq import GPIO, MMIO, Overlay, allocate
         self.verbose = verbose
         import os; self.busy = bool(os.environ.get("HELIX_CTRL_BUSY", os.environ.get("HELIX_BUSY")))   # HELIX_BUSY=1: poll the control DMA without sleeping
-        self.tx_wait = float(os.environ.get("HELIX_TX_WAIT_S", "0.5")); self.tx_busy_n = self.tx_busy_to = 0; self.tx_busy_max = 0.0
+        self.tx_wait = float(os.environ.get("HELIX_TX_WAIT_S", "0.5")); self.tx_busy_n = self.tx_busy_to = self.tx_dups = 0; self.tx_seq = None; self.tx_busy_max = 0.0
         self.ol = Overlay(bitfile, download=False)
         self.reg = MMIO(REG_BASE, REG_SPAN)
         self.allocate = allocate
@@ -177,6 +177,12 @@ class Service:
                     if self.verbose: log("CalFreeze skipped:", e)
 
     def cmd_triggertx(self, a):
+        # 2026-11-15: a[1] = sequence number of the burst.  The host retries a trigger whose ACK it did not get; executing the repeat
+        # would start a second transfer that never gets data (the transmitter then waits forever), so a repeat is only re-ACKed.
+        if len(a) > 1:
+            if a[1] == self.tx_seq:
+                self.tx_dups += 1; self.reply(UDP_CMD_ACK); return
+            self.tx_seq = a[1]
         # 2026-11-15 (sic6, stream_manager 1.2): reg0 bit2 = the TX packet fragmentation is still sending or has a trigger pending.
         # Hold the next trigger (and its ACK, so the host also holds the data) until it is idle; without this a sender that has
         # fallen behind by more than one burst loses a trigger, its data stays in the TX FIFO and the back-pressure blocks control.
@@ -248,6 +254,8 @@ class Service:
             log("WRONG ARG COUNT:", line[:80]); return
         for t, s in zip(types, tok[1:]):
             args.append(float(s) if t == "d" else int(s, 0))
+        if name == "triggertx" and len(tok) > 2:      # 2026-11-15: optional sequence number (fdx_bidi_claude), see cmd_triggertx
+            args.append(int(tok[2], 0))
         if self.verbose or name not in ("writereg", "readreg"):
             log("cmd", name, args)
         getattr(self, "cmd_" + name)(args)
@@ -275,7 +283,7 @@ class Service:
             with open(os.environ["HELIX_CTRL_TIMING"], "w") as f:
                 f.writelines("%s %d %d\n" % e for e in tlog)
         self.cdma.mmio.write(0x00, 0x4)                  # soft-reset the control DMA: no armed S2MM left pointing at freed memory
-        log("CONTROL_STOPPED commands=%d tx_busy_waits=%d tx_busy_max=%.4f s tx_busy_timeouts=%d" % (n, self.tx_busy_n, self.tx_busy_max, self.tx_busy_to))
+        log("CONTROL_STOPPED commands=%d tx_busy_waits=%d tx_busy_max=%.4f s tx_busy_timeouts=%d tx_repeats=%d" % (n, self.tx_busy_n, self.tx_busy_max, self.tx_busy_to, self.tx_dups))
 
 
 def main():

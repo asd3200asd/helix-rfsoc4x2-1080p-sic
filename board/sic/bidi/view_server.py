@@ -37,12 +37,14 @@ class H(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.send_header('Content-Length', str(len(PAGE))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(PAGE); return
         if self.path.split('?')[0] != '/raw': self.send_error(404); return
         frm = 0 if 'from=0' in self.path else None              # 2026-11-13: /raw?from=0 replays the file from its start (tests)
-        with LOCK:                                  # one stream at a time: a new viewer replaces the previous one
-            for p in CUR:
-                if p.poll() is None:
-                    try: os.killpg(p.pid, 15)
-                    except ProcessLookupError: pass
-            p = subprocess.Popen(['tail', '-c', '+%d' % ((start_offset() if frm is None else 0) + 1), '-F', src], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, preexec_fn=os.setsid); CUR[:] = [p]
+        if 'tail=1' in self.path:                                 # 2026-11-15: reconnect at the live end (no replay)
+            try: frm = os.path.getsize(src)
+            except OSError: frm = 0
+        # 2026-11-15: every viewer gets its own stream (the demo page and another tab used to kick each other off every few seconds,
+        # and each restart replayed the last GOP, so the picture repeated instead of being live).
+        with LOCK:
+            CUR[:] = [q for q in CUR if q.poll() is None]
+            p = subprocess.Popen(['tail', '-c', '+%d' % ((start_offset() if frm is None else frm) + 1), '-F', src], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, preexec_fn=os.setsid); CUR.append(p)
         self.send_response(200); self.send_header('Content-Type', 'application/octet-stream'); self.send_header('Cache-Control', 'no-store'); self.send_header('Transfer-Encoding', 'chunked'); self.end_headers()
         try:
             while True:

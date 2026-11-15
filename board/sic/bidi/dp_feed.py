@@ -11,9 +11,10 @@ fd = open(f, 'rb')
 def last_sps(end):
     start = max(0, end - 16_000_000); fd.seek(start); b = fd.read(end - start); i = b.rfind(b'\x00\x00\x00\x01\x67')
     return start + i if i >= 0 else None
-p = last_sps(os.path.getsize(f)); pos = p if p is not None else 0; skips = 0
+p = last_sps(os.path.getsize(f)); pos = p if p is not None else 0; skips = 0; tlog = 0.0   # 2026-11-15: POS <t> <pos> <size> every 0.5 s (latency measurement)
 while True:
     sz = os.path.getsize(f)
+    if time.time() - tlog >= 0.5: tlog = time.time(); print('POS %.3f %d %d' % (tlog, pos, sz), file=sys.stderr, flush=True)
     if sz - pos > maxlag:
         p = last_sps(sz)
         if p is not None and p > pos:

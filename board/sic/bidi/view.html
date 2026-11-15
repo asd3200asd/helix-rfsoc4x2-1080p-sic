@@ -53,7 +53,9 @@ function frame(nals) {          // nals: array of Uint8Array without start codes
 }
 async function stream() {
   conns++; pending = []; needKey = true;
-  const r = (await fetch('/raw' + (Q.get('from') === '0' ? '?from=0' : ''), { cache: 'no-store' })).body.getReader(); reader = r;
+  // 2026-11-15: a reconnect starts at the live end of the file (?tail=1) and waits for the next IDR, instead of replaying the last GOP
+  // (with the sender stopped, the picture used to repeat the same seconds over and over).
+  const r = (await fetch('/raw' + (Q.get('from') === '0' ? '?from=0' : conns > 1 ? '?tail=1' : ''), { cache: 'no-store' })).body.getReader(); reader = r;
   let buf = new Uint8Array(0), scan = 0;
   for (;;) {
     const { value, done } = await r.read(); if (done) return 'ended';
@@ -82,6 +84,7 @@ async function run() {
 setInterval(() => {
   const now = performance.now();
   if (now - fT >= 1000) { fps = (shown - fShown) * 1000 / (now - fT); fShown = shown; fT = now; }
+  if (now - lastData > 2500 && shown) { g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(0, cv.height / 2 - 60, cv.width, 120); g.fillStyle = '#ffcc33'; g.font = Math.round(cv.height / 14) + 'px sans-serif'; g.textAlign = 'center'; g.fillText('沒有新資料（對方發射中斷）— 等待下一個關鍵幀', cv.width / 2, cv.height / 2 + cv.height / 40); }
   if (reader && now - lastData > 3000) { const r = reader; reader = null; lastData = now; lastErr = 'no data 3 s: reconnect'; try { r.cancel(); } catch (e) {} }
   S.textContent = `HELIX full-duplex: received video (live)   ${fps.toFixed(1)} fps   frames ${shown}   decode errors ${errs}   ${(bytes / 1e6).toFixed(1)} MB   queue ${dec ? dec.decodeQueueSize : '-'}   connects ${conns}` + (lastErr ? '   last: ' + lastErr : '');
   if (now - lastPost > 2000) { lastPost = now; fetch('/stat', { method: 'POST', body: JSON.stringify({ t: Math.round((now - t0) / 1000), frames: shown, errors: errs, fps: +fps.toFixed(1), mb: +(bytes / 1e6).toFixed(1), conns, mode: (AVCC ? 'avcc' : 'annexb') + (FIX ? '+fix' : '') + (HW ? '/hw' : SW ? '/sw' : '/auto'), last: lastErr.slice(0, 300) }) }).catch(() => {}); }
