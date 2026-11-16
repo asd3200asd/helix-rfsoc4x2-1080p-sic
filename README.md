@@ -1,12 +1,12 @@
 # HELIX RFSoC4x2 — 雙向同頻全雙工 1080p 視訊＋數位自干擾消除（SIC）
 
-兩片 RFSoC4x2 在**同一頻率、同一時間**互相傳送攝影機 1080p H.264 視訊，兩片板子都用 SIC 消掉自己發射的訊號，只收對方的。PC 端板子把收到的畫面放在 DisplayPort 螢幕上；Mac 端板子收到的畫面在 Mac 的 Safari 裡播放，同一頁可以開關 SIC、看消除量。基於 [HELIX](docs/HELIX-upstream.md)（split 6、N_RE 73、QPSK、r=490/1024）。
+兩片 RFSoC4x2 在**同一頻率、同一時間**互相傳送攝影機 1080p H.264 視訊，兩片板子都用 SIC 消掉自己發射的訊號，只收對方的。PC 端板子把收到的畫面放在 DisplayPort 螢幕上；Mac 端板子收到的畫面在 Mac 的 Safari 裡播放，同一頁可以開關 SIC、看消除量。
 
 ## Demo
 
 [Watch the live RFSoC4x2 OTA video demonstration on YouTube](https://www.youtube.com/watch?v=WX1ZLYbwIeA).
 
-目前版本：**sic6**（FPGA 映像在 [sic6 Release](../../releases/tag/sic6)）。
+目前版本：**sic6**（FPGA 映像在 [sic6 Release](../../releases/tag/sic6)）。基於 [HELIX](docs/HELIX-upstream.md)（split 6、N_RE 73、QPSK、r=490/1024）。
 
 ## 結果（2026-11-15，1080p，PC 端與 Mac 端同時雙向）
 
