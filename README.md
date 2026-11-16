@@ -6,7 +6,7 @@
 
 ## Demo
 
-[Watch the live RFSoC4x2 OTA video demonstration on YouTube Shorts]([https://www.youtube.com/shorts/hewbl9AI9Js](https://www.youtube.com/watch?v=WX1ZLYbwIeA)).
+[Watch the live RFSoC4x2 OTA video demonstration on YouTube](https://www.youtube.com/watch?v=WX1ZLYbwIeA).
 
 ## 結果（2026-11-15，1080p，PC 端與 Mac 端同時雙向）
 
