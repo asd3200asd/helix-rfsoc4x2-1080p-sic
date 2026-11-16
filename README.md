@@ -4,6 +4,10 @@
 
 目前版本：**sic6**（FPGA 映像在 [sic6 Release](../../releases/tag/sic6)）。
 
+## Demo
+
+[Watch the live RFSoC4x2 OTA video demonstration on YouTube Shorts]([https://www.youtube.com/shorts/hewbl9AI9Js](https://www.youtube.com/watch?v=WX1ZLYbwIeA)).
+
 ## 結果（2026-11-15，1080p，PC 端與 Mac 端同時雙向）
 
 | 執行 | 長度 | PC → Mac | Mac → PC | 丟棄 burst | PC 端 DisplayPort 追趕跳格 |
